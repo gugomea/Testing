@@ -2,7 +2,7 @@ use crate::Frontend::{error::*, tokens::*};
 use std::str::Chars;
 use std::iter::Enumerate;
 
-pub fn parse_recursivo(input: &str) -> Result<Expression, ParsingError> {
+pub fn parse(input: &str) -> Result<Expression, ParsingError> {
     let mut it = input.chars().enumerate();
     return parse_rec(&mut it);
 }

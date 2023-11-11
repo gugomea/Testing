@@ -12,7 +12,7 @@ impl Interval {
     }
 }
 
-use super::Frontend::tokens::Literal;
+use crate::Frontend::tokens::Literal;
 impl From<Literal> for Interval {
     fn from(value: Literal) -> Self {
         match value {
