@@ -1,33 +1,5 @@
 use std::ops::Add;
-
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct Interval {
-    first: char,
-    last: char,
-}
-
-impl Interval {
-    pub fn char(ch: char) -> Self {
-        Interval { first: ch, last: ch }
-    }
-}
-
-use crate::Frontend::tokens::Literal;
-impl From<Literal> for Interval {
-    fn from(value: Literal) -> Self {
-        match value {
-            Literal::atom(ch) => Interval { first: ch, last: ch },
-            Literal::anyLiteral => Interval { first: '\u{0}', last: char::MAX },
-            Literal::range(rng) => Interval { first: *rng.start(), last: *rng.end() },
-        }
-    }
-}
-
-impl Interval {
-    pub fn new(first: char, last: char) -> Self {
-        Interval { first, last }
-    }
-}
+use crate::Backend::intervals::Interval;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Transition<T> {
@@ -55,7 +27,7 @@ pub struct Table<T> {
 }
 
 impl<T: Add<Output = T> + Copy + Clone> Table<T> {
-    pub fn get_mut(&mut self, it: Interval) -> Option<&mut Transition<T>> {
+    fn get_mut(&mut self, it: Interval) -> Option<&mut Transition<T>> {
         self.transitions.iter_mut().find(|x| x.start == it)
     }
 
@@ -64,17 +36,6 @@ impl<T: Add<Output = T> + Copy + Clone> Table<T> {
             Some(transition) => transition.push(destination),
             None => self.transitions.push(Transition::new(it, vec![destination])),
         }
-    }
-
-    fn offset(self, offset: T) -> Self {
-        let transitions = self.transitions.into_iter()
-            .map(|x| Transition::new(x.start, x.end.into_iter().map(|v| v + offset).collect()))
-            .collect::<Vec<_>>();
-        Self { transitions }
-    }
-
-    pub fn offset_tables(tables: Vec<Table<T>>, offset: T) -> Vec<Table<T>> {
-        tables.into_iter().map(|t| t.offset(offset)).collect()
     }
 }
 
@@ -119,7 +80,21 @@ impl NFA {
         }
     }
 
-    pub fn concat(mut nfa1: NFA, nfa2: NFA) -> NFA {
+    pub fn from_range(intervals: impl Iterator<Item = Interval>) -> Self {
+        let transitions = intervals.into_iter()
+            .map(|it| Transition::new(it, vec![1isize]))
+            .collect();
+        let table = Table { transitions };
+        Self {
+            n_states: 2,
+            current: 0,
+            empty_transitions: vec![vec![], vec![]],
+            transition_function: vec![table, Table::default()],
+
+        }
+    }
+
+    pub fn concat(mut nfa1: Self, nfa2: Self) -> Self {
         let (n, m) = (nfa1.n_states, nfa2.n_states);
         nfa1.empty_transitions.last_mut().unwrap().push(1);
 
@@ -131,7 +106,7 @@ impl NFA {
         }
     }
 
-    pub fn concat_directly(nfa1: NFA, nfa2: NFA, interval: Interval) -> NFA {
+    pub fn concat_directly(nfa1: Self, nfa2: Self, interval: Interval) -> Self {
         let (n, m) = (nfa1.n_states, nfa2.n_states);
         let mut tf = [nfa1.transition_function, nfa2.transition_function[1..].to_vec()].concat();
         tf.get_mut(n - 1).unwrap().push(interval, 1);
@@ -144,7 +119,7 @@ impl NFA {
         }
     }
 
-    pub fn union(nfas: Vec<NFA>) -> NFA {
+    pub fn union(nfas: Vec<Self>) -> Self {
         let l = nfas.len();
 
         let mut prefix_sum = vec![0isize; l];
@@ -177,6 +152,25 @@ impl NFA {
             transition_function: tfs,
         }
 
+    }
+
+    pub fn optional(mut nfa: NFA) -> Self {
+        let n = nfa.n_states as isize;
+        nfa.empty_transitions[0].push(n - 1);
+        nfa
+    }
+
+    pub fn one_or_more(mut nfa: NFA) -> Self {
+        let n = nfa.n_states;
+        nfa.empty_transitions[n - 1].push(-(n as isize) + 1);
+        nfa
+    }
+
+    pub fn zero_or_more(mut nfa: NFA) -> Self {
+        let n = nfa.n_states;
+        nfa.empty_transitions[0].push(n as isize - 1);
+        nfa.empty_transitions[n - 1].push(-(n as isize) + 1);
+        nfa
     }
 
 }
