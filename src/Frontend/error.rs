@@ -3,7 +3,7 @@ use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]
 pub struct ParsingError {
-    message: String,
+    pub message: String,
     error_type: ErrorType,
     idx: usize,
 }

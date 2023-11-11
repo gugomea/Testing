@@ -1,7 +1,8 @@
 use std::ops::Add;
 use crate::Backend::intervals::Interval;
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Transition<T> {
     start : Interval,
     end: Vec<T>
@@ -21,7 +22,7 @@ impl<T: Add<Output = T> + Copy + Clone> Transition<T> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub struct Table<T> {
     transitions: Vec<Transition<T>>,
 }
@@ -39,7 +40,7 @@ impl<T: Add<Output = T> + Copy + Clone> Table<T> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NFA {
     pub n_states: usize,
     pub current: usize,
