@@ -1,6 +1,7 @@
 use std::ops::RangeInclusive;
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Expression {
     l(Literal),
     any(Vec<Literal>),
@@ -17,7 +18,7 @@ pub enum Expression {
     empty
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Literal {
     atom(char),
     range(RangeInclusive<char>),
