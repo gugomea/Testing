@@ -28,6 +28,10 @@ impl Interval {
             _ => vec![].into_iter()
         }
     }
+
+    pub fn unique(intervals: impl Iterator<Item = Interval>) -> impl Iterator<Item = Interval> {
+        vec![].into_iter()
+    }
 }
 
 impl From<Literal> for Interval {

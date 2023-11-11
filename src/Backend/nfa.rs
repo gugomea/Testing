@@ -119,6 +119,27 @@ impl NFA {
         }
     }
 
+    pub fn concat_all(nfas: Vec<Self>) -> Self {
+        let mut tfs = vec![];
+        let mut ets = vec![];
+
+        for (_i, mut nfa) in nfas.into_iter().enumerate() {
+            tfs.append(&mut nfa.transition_function);
+            nfa.empty_transitions.last_mut().unwrap().push(1);
+            ets.append(&mut nfa.empty_transitions);
+        }
+
+        let _ = ets.last_mut().unwrap().pop();
+
+        Self {
+            n_states: tfs.len(),
+            current: 0,
+            empty_transitions: ets,
+            transition_function: tfs,
+        }
+
+    }
+
     pub fn union(nfas: Vec<Self>) -> Self {
         let l = nfas.len();
 

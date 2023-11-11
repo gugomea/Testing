@@ -11,13 +11,18 @@ pub fn build(input: Expression) -> NFA {
         Expression::one_or_more(exp)=> NFA::one_or_more(build(*exp)),
         Expression::zero_or_more(exp)=> NFA::zero_or_more(build(*exp)),
         Expression::concatenation(expressions)=> {
-            expressions.into_iter().fold(NFA::default(), |acc, a| {
-                let automata = build(a);
-                match automata.is_simple() {
-                    Some(interval) => NFA::concat_directly(acc, automata, interval),
-                    None => NFA::concat(acc, automata),
-                }
-            })
+            //expressions.into_iter().fold(NFA::default(), |acc, a| {
+            //    let automata = build(a);
+            //    match automata.is_simple() {
+            //        Some(interval) => NFA::concat_directly(acc, automata, interval),
+            //        None => NFA::concat(acc, automata),
+            //    }
+            //})
+            /////////////////////////////////////////////////////////////
+            /////////////////////////////////////////////////////////////
+            NFA::concat_all(expressions.into_iter().map(build).collect())
+            /////////////////////////////////////////////////////////////
+            /////////////////////////////////////////////////////////////
         }
         Expression::union(expressions)=> NFA::union(expressions.into_iter().map(build).collect()),
         Expression::group(exp)=> build(*exp),
@@ -28,10 +33,33 @@ pub fn build(input: Expression) -> NFA {
 #[test]
 fn build_automata() {
     use crate::Frontend::parser;
-    let str_input = "(a|bc|(de))?";
+    use std::time::Instant;
+    let str_input = "((a|bc|de*)+|((f)))ff".repeat(1000);
+    //let str_input = "(((a)))|b*c?d+(sp)|tt".repeat(100000);
+    //let str_input = "a|(aa)b?c*".repeat(1000);
+
+    let now = Instant::now();
     let parsed_expression = parser::parse(&str_input).ok().unwrap();
-    let automta = build(parsed_expression);
-    println!("{}", str_input);
-    println!("{:#?}", automta);
-    println!("{}", str_input);
+    let automata = build(parsed_expression);
+    let elapsed = now.elapsed();
+
+    println!("Elapsed BUILDING This crate: {:.2?}", elapsed);
+    println!("{:?}", automata.is_simple());
+    //println!("{:#?}", automata);
+
+    //////////////////////////////////////////////////
+    use regex_automata::{
+        nfa::thompson::{NFA, pikevm::PikeVM},
+        Match,
+    };
+    //////////////////////////////////////////////////
+
+    let now = Instant::now();
+
+    let config = NFA::config();
+    let nfa = NFA::compiler().configure(config).build(&str_input).unwrap();
+
+    let elapsed = now.elapsed();
+    println!("Elapsed regex_automata crate: {:.2?}", elapsed);
+    println!("{}", nfa.has_empty());
 }
