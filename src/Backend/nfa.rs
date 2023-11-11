@@ -30,7 +30,7 @@ impl Interval {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct Transition<T: Add + Copy + Clone> {
+pub struct Transition<T> {
     start : Interval,
     end: Vec<T>
 }
@@ -50,7 +50,7 @@ impl<T: Add<Output = T> + Copy + Clone> Transition<T> {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
-pub struct Table<T: Add + Copy + Clone> {
+pub struct Table<T> {
     transitions: Vec<Transition<T>>,
 }
 
