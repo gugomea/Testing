@@ -1,8 +1,8 @@
 // Import our outputted wasm ES6 module
 // Which, export default's, an initialization function
 
-import * as elem from "./visualization/elementos_graficos.js";
-import { initSync, build_automata } from "./pkg/automata.js";
+import * as elem from "./elementos_graficos.js";
+import { initSync, build_automata } from "../pkg/automata.js";
 
 async function fetchWasm() {
 	// Instantiate our wasm module
