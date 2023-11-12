@@ -216,8 +216,6 @@ export class TransicionGrafica {
 			let d2 = Math.sqrt(Math.cos(angulo)*Math.cos(angulo) + Math.sin(angulo)*Math.sin(angulo)) * posI.dist(p);
 			return Math.abs(d1 - d2);
 		} else {
-			//let final = (this.reversed) ? this.anguloI: this.anguloD;
-			//let inicio = (this.reversed) ? this.anguloD: this.anguloI;
 			///SENTIDO HORARIO
 			let final = this.anguloD;
 			let inicio = this.anguloI;
@@ -233,16 +231,6 @@ export class TransicionGrafica {
 			} else if(inicio > 0 && final < 0) {
 				condicion = (anguloPuntero <= inicio && anguloPuntero >= 0) || (anguloPuntero >= final && anguloPuntero <= 0);
 			}
-
-			//if(reversed) condicion = !condicion;
-
-			//console.log('inicio:', inicio);
-			//console.log('final:', final);
-			//console.log('p', anguloPuntero);
-			console.log('DENTRO:', condicion);
-
-			//console.log(`DENTRO: ${condicion}`);
-			// ATAN2 => { 0, 1, 2, PI, -PI, 2, 1, 0 }
 
 			if(!condicion) return Infinity;
 			let dist = this.centro.dist(p);

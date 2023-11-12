@@ -36,6 +36,7 @@ fn build_automata() {
     use std::time::Instant;
     let str_input = "((a|bc|de*)+|((f)))f+f?".repeat(500_000);
     //let str_input = "(((a)))|b*c?d+(sp)|tt".repeat(100000);
+    let str_input = "a|b|c|d".repeat(1000);
 
     let now = Instant::now();
     let parsed_expression = parser::parse(&str_input).ok().unwrap();

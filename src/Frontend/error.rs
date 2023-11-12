@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 use std::{error::Error, fmt::Display};
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ParsingError {
     pub message: String,
     error_type: ErrorType,
@@ -23,7 +24,7 @@ impl Display for ParsingError {
 
 impl Error for ParsingError {}
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ErrorType {
     union,
     range,
