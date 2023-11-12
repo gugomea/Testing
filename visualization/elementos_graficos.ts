@@ -70,13 +70,20 @@ export class TransicionGrafica {
 		this.texto = "";
 	}
 
+	static new(nodoI: NodoGrafico, nodoF: NodoGrafico) : TransicionGrafica {
+		let t = new TransicionGrafica(nodoI, nodoF);
+		t.aux = 0.1;
+		t.modificando = false;
+		return t;
+	}
+
 	draw(ctx: CanvasRenderingContext2D) {
 		let posI = this.nodoI.pos();
 		let posF = this.nodoF.pos();
 
 		if(this.aux == 0 ) {
 			if(!this.modificando) {
-				this.aux = 1;
+				this.aux = 0.1;
 				this.draw(ctx);
 				return;
 			}
@@ -250,12 +257,14 @@ export class AutomataGrafico {
 	creating_transition: null | TransicionGrafica;
 	elemento_seleccionado: any;//cambiar este tipo a cuando cree una interfaz "ElementoGrafico".
 	visibilidad: Boolean;//estado de la visibilidad del autómata.
+	control: Boolean;
 
 	constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
 		this.canvas = canvas;
 		this.ctx = ctx;
 		this.nodos = new Array();
 		this.transiciones = new Array();
+		this.control = false;
 	}
 
 	background() {
@@ -277,11 +286,14 @@ export class AutomataGrafico {
 	}
 
 	cambiar_texto(texto: string) {
+		if(texto == 'Control') this.control = true;
+
 		if(this.elemento_seleccionado != null) {
-			if(texto.length == 1) {
+			if(this.control && texto == 'v'){
+				navigator.clipboard.readText().then(t => this.elemento_seleccionado.texto += t);
+			} else if(texto.length == 1) {
 				this.elemento_seleccionado.texto += texto;
-			}
-			else if(texto == 'Backspace') {
+			} else if(texto == 'Backspace') {
 				//console.log(texto);
 				let t = this.elemento_seleccionado.texto;
 				this.elemento_seleccionado.texto = t.slice(0, -1);

@@ -31,19 +31,21 @@ function initEventos() {
 	let form = <HTMLFormElement> document.getElementById('form');
 	form.addEventListener('submit', e => {
 		e.preventDefault();
-		//console.log(build_automata(input.value));
+		console.log(build_automata(input.value));
 		let nodo_1 = new NodoGrafico(0, new Punto(100, 100)); 
 		let nodo_2 = new NodoGrafico(1, new Punto(200, 200));
-		let transicion = new TransicionGrafica(nodo_1, nodo_2);
+		let transicion = TransicionGrafica.new(nodo_1, nodo_2);
 		automata.nodos.push(nodo_1);
 		automata.nodos.push(nodo_2);
 		automata.transiciones.push(transicion);
+		automata.draw();
 	});
 
 
 	canvas.addEventListener('mouseenter', (_) => mouse_in_canvas = true);
 	canvas.addEventListener('mouseleave', (_) => mouse_in_canvas = false);
 	window.addEventListener('keydown', (e) => automata.cambiar_texto(e.key));
+	window.addEventListener('keyup', (e) => { if(e.key == 'Control') automata.control = false });
 	window.addEventListener('resize', _ => { reshape(); automata.draw(); });
 	window.addEventListener('mousedown', e => {
 		if(mouse_in_canvas) automata.create_node_or_link(e);
