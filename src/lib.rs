@@ -13,7 +13,7 @@ pub fn build_automata(val: JsValue) -> Result<JsValue, JsValue> {
     let parsed_input = parse(&input);
     let result = match parsed_input {
         Ok(value) => Ok(serde_wasm_bindgen::to_value(
-                &(build(value.clone()), value)
+                &value
         )?),
         Err(er) => Ok(serde_wasm_bindgen::to_value(&er)?),
     };

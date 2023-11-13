@@ -20,14 +20,22 @@ function reshape() {
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto): [any, any] {
+function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto): [any[], number] {
 	let exp = null;
 	if((exp = expression.concatenation) != undefined) {
 		let n_expression = exp.length;
 		let start_node;
-		let [primero, ultimo] = [null, null];
+		let [primero, ultimo, altura] = [null, null, 0];
+		let lista_total = [[]]
 		for(let i = 0; i < n_expression; i++) {
-			let [s, e] = calculate_bounding(automata, exp[i], p);
+			let [a, aux] = calculate_bounding(automata, exp[i], p);
+			altura = Math.max(aux, altura);
+			lista_total = lista_total.concat(a);
+			let [s, e] = [a[0], a[a.length-1]];
+
+			p = new Punto(e.centro.x, e.centro.y);
+			p.x += 100;
+
 			if(i == 0) primero = s;
 			else if(i == (n_expression-1)) ultimo = e;
 			if(i > 0) {
@@ -37,38 +45,83 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 			}
 			start_node = e;
 		}
-		return [primero, ultimo];
+		console.log('listatotal: ', lista_total.slice(1));
+		return [lista_total.slice(1), altura];
 	} else if((exp = expression.union) != undefined) {
-		//TODO: I JUST DID IT SO IT WORKS WITH LENGTH == 2
-		//console.log('hola');
-		let n_expression = exp.length;
-		let inicio = new Punto(p.x, p.y + 200+ 100);
+		//////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////
+
+		let boundings = []
+		let n = exp.length;
+		let inicio = new Punto(p.x, p.y);
+		p.x += 100;
 		let start_node = new NodoGrafico(0, inicio);
 		automata.nodos.push(start_node);
-		let final_nodes = [];
-		let fijo = new Punto(p.x, p.y);
-		for(let i = 0; i < n_expression; i++) {
-			p.x = fijo.x;
-			p.y += 200
-			let [s, e] = calculate_bounding(automata, exp[i], p);
-			final_nodes.push(e);
-			let epsilon_transition = TransicionGrafica.new(start_node, s);
-			epsilon_transition.texto = 'ɛ';
-			automata.transiciones.push(epsilon_transition);
+		let altura_total = 0;
+		// calcular todos los boundings y meterlos en una lista.
+		let espacio = 100;
+		// calcular la suma de las alturas.
+		for(let i = 0; i < n; i++) {
+			let actual = calculate_bounding(automata, exp[i], new Punto(p.x, p.y));
+			altura_total += actual[1];
+			boundings.push(actual);
+			let trans = TransicionGrafica.new(start_node, actual[0][0]);
+			trans.texto = 'ɛ';
+			automata.transiciones.push(trans);
 		}
-		//console.log('final_nodes: ', final_nodes);
-		let max_x = Math.max(...final_nodes.map( f=> f.centro.x));
-		let final = new NodoGrafico(0, new Punto(max_x + 100, inicio.y));
-		//console.log('final: ', final);
-		automata.nodos.push(final);
-		for(let i = 0; i < final_nodes.length; i++) {
-			final_nodes[i].centro.x = max_x;
-			let epsilon_transition = TransicionGrafica.new(final_nodes[i], final);
-			epsilon_transition.texto = 'ɛ';
-			automata.transiciones.push(epsilon_transition);
+
+
+		let max_x = Math.max(...boundings.map(f => Math.max(...f[0].map(xx => xx.centro.x))));
+		console.log('max: ', max_x);
+		let nodo_final = new NodoGrafico(0, new Punto(max_x + 100, start_node.centro.y));
+		automata.nodos.push(nodo_final);
+
+		let alt_t = altura_total;
+		altura_total *= 100;
+		let contador_altura = -(altura_total-100) / 2;
+		// dividir las alturas verticalmente.
+		for(let i = 0; i < Math.floor(n / 2); i++) {
+			let len_len = boundings[i][0].length;
+			let trans = TransicionGrafica.new(boundings[i][0][len_len-1], nodo_final);
+			trans.texto = 'ɛ';
+			automata.transiciones.push(trans);
+			//mover todos los nodos de el boundings[i];
+			for(let k = 0; k < boundings[i][0].length; k++) {
+				boundings[i][0][k].centro.y += contador_altura;
+			}
+			contador_altura += (boundings[i][1] * 100);
 		}
+
+		//let diff = (altura_total) / 2;
+		//console.log('diff: ', diff);
+
+		//start_node.centro.y += diff;
+		//nodo_final.centro.y += diff;
+		p = new Punto(nodo_final.centro.x, nodo_final.centro.y);
+		//if(alt_t % 2 == 0) contador_altura += 100
+
+		console.log('start_node: ', start_node);
+
+		//meter padding
+		
+		for(let i = Math.floor(n / 2); i < n; i++) {
+			let len_len = boundings[i][0].length;
+			let trans = TransicionGrafica.new(boundings[i][0][len_len-1], nodo_final);
+			trans.texto = 'ɛ';
+			automata.transiciones.push(trans);
+			for(let k = 0; k < boundings[i][0].length; k++) {
+				boundings[i][0][k].centro.y += contador_altura;
+			}
+			contador_altura += (boundings[i][1] * 100);
+		}
+
+
+		console.log('altura de la union: ', alt_t);
+		return [[start_node].concat(...boundings.map(x => x[0]), nodo_final), alt_t];
+
+		//////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////
 	} else if((exp = expression.l) != undefined) {
-		p.x += 100;
 		let start_node = new NodoGrafico(0, new Punto(p.x, p.y)) 
 		automata.nodos.push(start_node);
 		p.x += 100;
@@ -77,8 +130,7 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 		let transition = TransicionGrafica.new(start_node, end_node);
 		transition.texto = <string>Object.values(exp)[0];
 		automata.transiciones.push(transition);
-		//console.log('exp: ', exp);
-		return [start_node, end_node];
+		return [[start_node, end_node], 1];
 	} else if((exp = expression.one_or_more) != undefined) {
 
 	} else if((exp = expression.zero_or_more) != undefined) {
@@ -86,18 +138,12 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 	} else if((exp = expression.optional) != undefined) {
 
 	} else if((exp = expression.group) != undefined) {
+		return calculate_bounding(automata, exp, p);
 
 	} else if((exp = expression.empty) != undefined) {
 
-	} //else if((exp = expression.atom) != undefined) {
-
-	//} else if((exp = expression.range) != undefined) {
-
-	//} else if((exp = expression.anyLiteral) != undefined) {
-
-	//}
-	//console.log('exp: ', exp);
-	return [new Punto(0, 0), new Punto(0, 0)];
+	}
+	return [[], NaN];
 }
 
 function initEventos() {
@@ -111,10 +157,12 @@ function initEventos() {
 	let form = <HTMLFormElement> document.getElementById('form');
 	form.addEventListener('submit', e => {
 		e.preventDefault();
-		let [_nfa, ast] = build_automata(input.value);
+		let ast = build_automata(input.value);
+		console.log('ast: ', ast);
 		automata.clear();
-		calculate_bounding(automata, ast, new Punto(100, 100));
-		console.log(automata.nodos);
+		calculate_bounding(automata, ast, new Punto(250, 200));
+		automata.nodos.push(new NodoGrafico(0, new Punto(100, 200)));
+		//automata.nodos.push(new NodoGrafico(0, new Punto(110, 210)));
 		automata.draw();
 	});
 
