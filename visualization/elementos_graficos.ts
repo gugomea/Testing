@@ -267,6 +267,16 @@ export class AutomataGrafico {
 		this.control = false;
 	}
 
+	clear() {
+		this.nodos = new Array();
+		this.transiciones = new Array();
+		this.draggin = null;
+		this.shaping_transition = null;
+		this.creating_transition = null;
+		this.elemento_seleccionado = null;
+		this.control = false;
+	}
+
 	background() {
 		if(this.elemento_seleccionado != null) {
 			let style = this.ctx.strokeStyle;
