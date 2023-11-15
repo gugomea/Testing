@@ -72,6 +72,7 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 
 
 		let max_x = Math.max(...boundings.map(f => Math.max(...f[0].map(xx => xx.centro.x))));
+		boundings.forEach(f => f[0][f[0].length - 1].centro.x = max_x);
 		console.log('max: ', max_x);
 		let nodo_final = new NodoGrafico(0, new Punto(max_x + 100, start_node.centro.y));
 		automata.nodos.push(nodo_final);
@@ -160,8 +161,8 @@ function initEventos() {
 		let ast = build_automata(input.value);
 		console.log('ast: ', ast);
 		automata.clear();
-		calculate_bounding(automata, ast, new Punto(250, 200));
-		automata.nodos.push(new NodoGrafico(0, new Punto(100, 200)));
+		calculate_bounding(automata, ast, new Punto(250, 500));
+		automata.nodos.push(new NodoGrafico(0, new Punto(50, 500)));
 		//automata.nodos.push(new NodoGrafico(0, new Punto(110, 210)));
 		automata.draw();
 	});
