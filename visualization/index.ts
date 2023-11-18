@@ -150,10 +150,23 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 		let end_node = new NodoGrafico(0, new Punto(p.x, p.y)) 
 		automata.nodos.push(end_node);
 		let transition = TransicionGrafica.new(start_node, end_node);
-		transition.texto = (<Array<any>>exp).map(x => {
+
+		let literals = (<Array<any>>exp).map(x => {
 			if (x.atom != undefined) return x.atom;
 			else return `[${x.range.start}-${x.range.end}]`;
-		}).join(',');
+		});
+		let text = literals.join(',');
+
+		//////////////////////////////////////////////////////
+		automata.ctx.font = "22px serif";
+		let long = automata.ctx.measureText(text).width;
+		let diff = Math.max(0, long - (end_node.centro.x - start_node.centro.x) + start_node.radio * 2);
+		/////////////////////////////////////////////////////
+
+		p.x += diff;
+		end_node.centro.x += diff;
+
+		transition.texto = text;
 		automata.transiciones.push(transition);
 		return [[start_node, end_node], 1];
 	} else if((exp = expression.anyBut) != undefined) {
@@ -162,11 +175,26 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 		p.x += 100;
 		let end_node = new NodoGrafico(0, new Punto(p.x, p.y)) 
 		automata.nodos.push(end_node);
+
 		let transition = TransicionGrafica.new(start_node, end_node);
-		transition.texto = '~(' + (<Array<any>>exp).map(x => {
+
+		let literals = (<Array<any>>exp).map(x => {
 			if (x.atom != undefined) return x.atom;
 			else return `[${x.range.start}-${x.range.end}]`;
-		}).join(',') + ')';
+		});
+
+		let text = '~(' + literals.join(',') + ')';
+		//////////////////////////////////////////////////////
+		automata.ctx.font = "22px serif";
+		let long = automata.ctx.measureText(text).width;
+		let diff = Math.max(0, long - (end_node.centro.x - start_node.centro.x) + start_node.radio * 2);
+		/////////////////////////////////////////////////////
+
+		p.x += diff;
+		end_node.centro.x += diff;
+
+		transition.texto = text;
+
 		automata.transiciones.push(transition);
 		return [[start_node, end_node], 1];
 	}
