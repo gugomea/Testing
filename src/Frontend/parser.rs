@@ -56,6 +56,7 @@ pub fn parse(input: &str) -> Result<Expression, ParsingError> {
                 }
 
                 if mid { ranges.push(Literal::atom('-')); }
+                if let Some(st) = start { ranges.push(Literal::atom(st)); }
 
                 match negation {
                     true => expressions.push(Some(Expression::anyBut(ranges))),

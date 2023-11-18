@@ -129,7 +129,7 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 		let end_node = new NodoGrafico(0, new Punto(p.x, p.y)) 
 		automata.nodos.push(end_node);
 		let transition = TransicionGrafica.new(start_node, end_node);
-		transition.texto = <string>Object.values(exp)[0];
+		transition.texto = <string> Object.values(exp)[0];
 		automata.transiciones.push(transition);
 		return [[start_node, end_node], 1];
 	} else if((exp = expression.one_or_more) != undefined) {
@@ -143,6 +143,32 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 
 	} else if((exp = expression.empty) != undefined) {
 
+	} else if((exp = expression.any) != undefined) {
+		let start_node = new NodoGrafico(0, new Punto(p.x, p.y)) 
+		automata.nodos.push(start_node);
+		p.x += 100;
+		let end_node = new NodoGrafico(0, new Punto(p.x, p.y)) 
+		automata.nodos.push(end_node);
+		let transition = TransicionGrafica.new(start_node, end_node);
+		transition.texto = (<Array<any>>exp).map(x => {
+			if (x.atom != undefined) return x.atom;
+			else return `[${x.range.start}-${x.range.end}]`;
+		}).join(',');
+		automata.transiciones.push(transition);
+		return [[start_node, end_node], 1];
+	} else if((exp = expression.anyBut) != undefined) {
+		let start_node = new NodoGrafico(0, new Punto(p.x, p.y)) 
+		automata.nodos.push(start_node);
+		p.x += 100;
+		let end_node = new NodoGrafico(0, new Punto(p.x, p.y)) 
+		automata.nodos.push(end_node);
+		let transition = TransicionGrafica.new(start_node, end_node);
+		transition.texto = '~(' + (<Array<any>>exp).map(x => {
+			if (x.atom != undefined) return x.atom;
+			else return `[${x.range.start}-${x.range.end}]`;
+		}).join(',') + ')';
+		automata.transiciones.push(transition);
+		return [[start_node, end_node], 1];
 	}
 	return [[], NaN];
 }
