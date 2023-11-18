@@ -82,7 +82,7 @@ impl NFA {
     }
 
     pub fn from_range(intervals: impl Iterator<Item = Interval>) -> Self {
-        let transitions = intervals.into_iter()
+        let transitions = intervals
             .map(|it| Transition::new(it, vec![1isize]))
             .collect();
         let table = Table { transitions };
@@ -120,11 +120,11 @@ impl NFA {
         }
     }
 
-    pub fn concat_all(nfas: Vec<Self>) -> Self {
+    pub fn concat_all(nfas: impl Iterator<Item = Self>) -> Self {
         let mut tfs = vec![];
         let mut ets = vec![];
 
-        for (_i, mut nfa) in nfas.into_iter().enumerate() {
+        for (_i, mut nfa) in nfas.enumerate() {
             tfs.append(&mut nfa.transition_function);
             nfa.empty_transitions.last_mut().unwrap().push(1);
             ets.append(&mut nfa.empty_transitions);

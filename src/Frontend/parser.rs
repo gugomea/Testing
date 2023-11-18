@@ -3,8 +3,8 @@ use std::collections::VecDeque;
 use crate::Frontend::{error::*, tokens::*};
 
 pub fn parse(input: &str) -> Result<Expression, ParsingError> {
-    let mut it = input.chars().enumerate();
-    
+    let mut it = input.chars().enumerate().peekable();
+
     //The stack where we are going to store the expressions while constructing them,
     //when the process ends, this should only have one expression, the final one.
     let mut expressions = vec![];
@@ -20,7 +20,53 @@ pub fn parse(input: &str) -> Result<Expression, ParsingError> {
     while let Some((idx, current)) = it.next() {
         match current {
             '[' => {
-                return Err(ParsingError::new(("Error Construyendo rango").into(), ErrorType::range, idx));
+                let negation = match it.peek() {
+                    Some((_, '^')) => { it.next(); true }
+                    _ => false,
+                };
+
+                let mut ranges = vec![];
+                if let Some((_, ']')) = it.peek() {
+                    ranges.push(Literal::atom(']'));
+                    it.next();
+                }
+
+                let (mut start, mut mid, mut end) = (None, false, None);
+                loop {
+                    match it.next() {
+                        Some((_, ']')) => break,
+                        None => return Err(ParsingError::new("Set not closed".into(), ErrorType::range, 0)),
+                        Some((_i, '-')) => mid = true,
+                        Some((_i, ch)) => {
+                            match (mid, start) {
+                                (true, _) => end = Some(ch),
+                                (false, None) => start = Some(ch),
+                                (false, Some(st)) => {
+                                    ranges.push(Literal::atom(st));
+                                    start = Some(ch);
+                                }
+                            }
+                        }
+                    }
+                    if let (Some(st), true, Some(en)) = (start, mid, end) {
+                        ranges.push(Literal::range(st..=en));
+                        (start, end) = (None, None);
+                        mid = false;
+                    }
+                }
+
+                if mid { ranges.push(Literal::atom('-')); }
+
+                match negation {
+                    true => expressions.push(Some(Expression::anyBut(ranges))),
+                    false => expressions.push(Some(Expression::any(ranges))),
+                }
+
+                match number_of_expressions.last_mut() {
+                    Some(n) => *n += 1,
+                    None => return Err(ParsingError::new("Unión encontrada en sitio inesperado".into(), ErrorType::union, idx)),
+                }
+
             }
 
             '|' => {

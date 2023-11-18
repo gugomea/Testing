@@ -26,11 +26,11 @@ impl Interval {
             (Some(l1), Some(f2)) => vec![Interval::new(f1, l1), Interval::new(f2, l2)].into_iter(),
             (Some(l1), None) => vec![Interval::new(f1, l1)].into_iter(),
             (None, Some(f2)) => vec![Interval::new(f2, l2)].into_iter(),
-            _ => vec![].into_iter()
+            _ => vec![].into_iter(),
         }
     }
 
-    pub fn unique(intervals: impl Iterator<Item = Interval>) -> impl Iterator<Item = Interval> {
+    pub fn unique(_intervals: impl Iterator<Item = Interval>) -> impl Iterator<Item = Interval> {
         vec![].into_iter()
     }
 }

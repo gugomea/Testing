@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn build_automata(val: JsValue) -> Result<JsValue, JsValue> {
-    use Backend::build::build;
+    //use Backend::build::build;
     use Frontend::parser::parse;
 
     let input: String = serde_wasm_bindgen::from_value(val)?;
