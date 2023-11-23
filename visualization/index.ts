@@ -161,24 +161,33 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 		return [states, height];
 	} else if((exp = expression.zero_or_more) != undefined) {
 		let [states, height] = calculate_bounding(automata, exp, p);
-		let max = Math.min(...states.map(x => x.centro.y));
-		let equis = states.filter( x => x.centro.y <= (max)).sort((a, b) => a.centro.x - b.centro.x);
-		console.log('max: ', max);
-		console.log('equis: ', equis);
 
+		let max = Math.min(...states.map(x => x.centro.y));
+		let equis = states.filter( x => x.centro.y <= max).sort((a, b) => a.centro.x - b.centro.x);
+		let distancia_izda = states[0].centro.x - equis[0].centro.x;
+		let distancia_dcha = equis[equis.length - 1].centro.x - states[states.length - 1].centro.x;
+		let [a, b, ang] = ( distancia_izda <= distancia_dcha) ? [equis[0], states[0], Math.PI / 2]: [equis[equis.length - 1], states[states.length-1], -Math.PI / 2];
+		console.log('equis(): ', equis);
 		let trans = TransicionGrafica.new(states[states.length-1], states[0]);
 		trans.texto = 'ɛ';
-		trans.puntero = new Punto((equis[equis.length - 1].centro.x + equis[0].centro.x) / 2,max - (equis[equis.length - 1].centro.x - equis[0].centro.x) / 2);
+		let atan = Math.atan2(b.centro.y - a.centro.y, a.centro.x - b.centro.x) + ang;
+		console.log('atan: ', atan);
+		trans.puntero = new Punto(<number>(a.centro.x) + 30 * Math.cos(atan), (<number>a.centro.y) - 30 * Math.sin(atan) - 5);
 		trans.modificando = true;
 		trans.reversed = true;
 		automata.transiciones.push(trans);
 
 		max = Math.max(...states.map(x => x.centro.y));
 		equis = states.filter( x => x.centro.y >= max).sort((a, b) => a.centro.x - b.centro.x);
+		distancia_izda = equis[0].centro.x - states[0].centro.x;
+		distancia_dcha = states[states.length - 1].centro.x - equis[equis.length - 1].centro.x;
+		[a, b, ang] = ( distancia_izda <= distancia_dcha) ? [equis[0], states[0], -Math.PI / 2]: [equis[equis.length - 1], states[states.length-1], Math.PI / 2];
 		console.log('equis(): ', equis);
 		let trans2 = TransicionGrafica.new(states[0], states[states.length-1]);
 		trans2.texto = 'ɛ';
-		trans2.puntero = new Punto((equis[equis.length - 1].centro.x + equis[0].centro.x) / 2,max + (equis[equis.length - 1].centro.x - equis[0].centro.x) / 2);
+		atan = Math.atan2(b.centro.y - a.centro.y, a.centro.x - b.centro.x) + ang;
+		console.log('atan: ', atan);
+		trans2.puntero = new Punto(<number>(a.centro.x) + 30 * Math.cos(atan), (<number>a.centro.y) - 30 * Math.sin(atan) + 5);
 		trans2.modificando = true;
 		trans2.reversed = true;
 		automata.transiciones.push(trans2);
@@ -187,6 +196,7 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 		automata.draw();
 		console.log('trans: ', trans);
 		trans.modificando = false;
+		trans2.modificando = false;
 		return [states, height];
 
 	} else if((exp = expression.optional) != undefined) {
