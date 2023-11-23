@@ -26,7 +26,7 @@ fn build_automata() {
     //let str_input = "a|b|c|d".repeat(1000);
     //let str_input = "abcd".repeat(2_000_000);
 
-    let str_input = "[^abcd-z]".repeat(1_000_000);
+    let str_input = "[^abcd-z]".repeat(1_000_00);
     for _ in 0..10 {
         let now = Instant::now();
 

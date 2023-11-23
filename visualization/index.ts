@@ -92,17 +92,8 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 			}
 			contador_altura += (boundings[i][1] * 100);
 		}
-
-		//let diff = (altura_total) / 2;
-		//console.log('diff: ', diff);
-
-		//start_node.centro.y += diff;
-		//nodo_final.centro.y += diff;
 		p = new Punto(nodo_final.centro.x, nodo_final.centro.y);
-		//if(alt_t % 2 == 0) contador_altura += 100
-
 		console.log('start_node: ', start_node);
-
 		//meter padding
 		
 		for(let i = Math.floor(n / 2); i < n; i++) {
@@ -129,15 +120,112 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 		let end_node = new NodoGrafico(0, new Punto(p.x, p.y)) 
 		automata.nodos.push(end_node);
 		let transition = TransicionGrafica.new(start_node, end_node);
-		transition.texto = <string> Object.values(exp)[0];
+		if(typeof exp === 'string') transition.texto = exp;
+		else transition.texto = <string> Object.values(exp)[0];
+
+		//////////////////////////////////////////////////////
+		automata.ctx.font = "22px serif";
+		let long = automata.ctx.measureText(transition.texto).width;
+		let diff = Math.max(0, long - (end_node.centro.x - start_node.centro.x) + start_node.radio * 2);
+		/////////////////////////////////////////////////////
+
+		p.x += diff;
+		end_node.centro.x += diff;
+
 		automata.transiciones.push(transition);
 		return [[start_node, end_node], 1];
 	} else if((exp = expression.one_or_more) != undefined) {
-
+		let [states, height] = calculate_bounding(automata, exp, p);
+		if(height % 2 == 0) {
+			let trans = TransicionGrafica.new(states[states.length-1], states[0]);
+			trans.texto = 'ɛ';
+			trans.aux = -0.1;
+			trans.reversed = true;
+			automata.transiciones.push(trans);
+			automata.draw();
+		} else {
+			let max = Math.min(...states.map(x => x.centro.y)) - 30;
+			let equis = states.filter( x => x.centro.y <= (max + 30)).sort((a, b) => a.centro.x - b.centro.x);;
+			console.log('max: ', max);
+			console.log('equis: ', equis);
+			let trans = TransicionGrafica.new(states[states.length-1], states[0]);
+			trans.texto = 'ɛ';
+			trans.puntero = new Punto((equis[equis.length - 1].centro.x + equis[0].centro.x) / 2,max - (equis[equis.length - 1].centro.x - equis[0].centro.x) / 2);
+			trans.modificando = true;
+			trans.reversed = true;
+			automata.transiciones.push(trans);
+			console.log('trans: ', trans);
+			automata.draw();
+			trans.modificando = false;
+		}
+		return [states, height];
 	} else if((exp = expression.zero_or_more) != undefined) {
+		let [states, height] = calculate_bounding(automata, exp, p);
+		let max = Math.min(...states.map(x => x.centro.y));
+		let equis = states.filter( x => x.centro.y <= (max)).sort((a, b) => a.centro.x - b.centro.x);
+		console.log('max: ', max);
+		console.log('equis: ', equis);
+
+		let trans = TransicionGrafica.new(states[states.length-1], states[0]);
+		trans.texto = 'ɛ';
+		trans.puntero = new Punto((equis[equis.length - 1].centro.x + equis[0].centro.x) / 2,max - (equis[equis.length - 1].centro.x - equis[0].centro.x) / 2);
+		trans.modificando = true;
+		trans.reversed = true;
+		automata.transiciones.push(trans);
+
+		max = Math.max(...states.map(x => x.centro.y));
+		equis = states.filter( x => x.centro.y >= max).sort((a, b) => a.centro.x - b.centro.x);
+		console.log('equis(): ', equis);
+		let trans2 = TransicionGrafica.new(states[0], states[states.length-1]);
+		trans2.texto = 'ɛ';
+		trans2.puntero = new Punto((equis[equis.length - 1].centro.x + equis[0].centro.x) / 2,max + (equis[equis.length - 1].centro.x - equis[0].centro.x) / 2);
+		trans2.modificando = true;
+		trans2.reversed = true;
+		automata.transiciones.push(trans2);
+
+
+		automata.draw();
+		console.log('trans: ', trans);
+		trans.modificando = false;
+		return [states, height];
 
 	} else if((exp = expression.optional) != undefined) {
-
+		let [states, height] = calculate_bounding(automata, exp, p);
+		if(height == 1) {
+			let s = states[0].centro.x;
+			let f = states[states.length - 1].centro.x;
+			let aux = ((f - s) / 2) / states.length * 2 ;
+			let trans = TransicionGrafica.new(states[0], states[states.length-1]);
+			trans.texto = 'ɛ';
+			trans.aux = aux;
+			automata.transiciones.push(trans);
+			automata.draw();
+			console.log('states: ', states);
+			console.log('height: ', height);
+			console.log('aux: ', aux);
+		} else if(height % 2 == 0) {
+			let trans = TransicionGrafica.new(states[0], states[states.length-1]);
+			trans.texto = 'ɛ';
+			trans.aux = -0.1;
+			trans.reversed = true;
+			automata.transiciones.push(trans);
+			automata.draw();
+		} else {
+			let max = Math.min(...states.map(x => x.centro.y)) - 30;
+			let equis = states.filter( x => x.centro.y <= (max + 30)).sort((a, b) => a.centro.x - b.centro.x);;
+			console.log('max: ', max);
+			console.log('equis: ', equis);
+			let trans = TransicionGrafica.new(states[0], states[states.length-1]);
+			trans.texto = 'ɛ';
+			trans.puntero = new Punto((equis[equis.length - 1].centro.x + equis[0].centro.x) / 2,max - (equis[equis.length - 1].centro.x - equis[0].centro.x) / 2);
+			trans.modificando = true;
+			trans.reversed = true;
+			automata.transiciones.push(trans);
+			console.log('trans: ', trans);
+			automata.draw();
+			trans.modificando = false;
+		}
+		return [states, height];
 	} else if((exp = expression.group) != undefined) {
 		return calculate_bounding(automata, exp, p);
 
@@ -215,9 +303,7 @@ function initEventos() {
 		let ast = build_automata(input.value);
 		console.log('ast: ', ast);
 		automata.clear();
-		calculate_bounding(automata, ast, new Punto(250, 500));
-		automata.nodos.push(new NodoGrafico(0, new Punto(50, 500)));
-		//automata.nodos.push(new NodoGrafico(0, new Punto(110, 210)));
+		calculate_bounding(automata, ast, new Punto(250, 650));
 		automata.draw();
 	});
 
