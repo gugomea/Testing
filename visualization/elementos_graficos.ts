@@ -446,7 +446,7 @@ export class AutomataGrafico {
 	}
 }
 
-function circuloTresPuntos(p1: Punto, p2: Punto, p3: Punto): [Punto, number] {
+export function circuloTresPuntos(p1: Punto, p2: Punto, p3: Punto): [Punto, number] {
 	let [x1, x2, x3] = [p1.x, p2.x, p3.x];
 	let [y1, y2, y3] = [p1.y, p2.y, p3.y];
 

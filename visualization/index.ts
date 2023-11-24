@@ -1,7 +1,7 @@
 // Import our outputted wasm ES6 module
 // Which, export default's, an initialization function
 
-import {TransicionGrafica, AutomataGrafico, NodoGrafico, Punto } from "./elementos_graficos.js";
+import {TransicionGrafica, AutomataGrafico, NodoGrafico, Punto, circuloTresPuntos } from "./elementos_graficos.js";
 import { initSync, build_automata } from "../pkg/automata.js";
 
 async function fetchWasm() {
@@ -164,37 +164,29 @@ function calculate_bounding(automata: AutomataGrafico, expression: any, p: Punto
 
 		let max = Math.min(...states.map(x => x.centro.y));
 		let equis = states.filter( x => x.centro.y <= max).sort((a, b) => a.centro.x - b.centro.x);
-		let distancia_izda = states[0].centro.x - equis[0].centro.x;
-		let distancia_dcha = equis[equis.length - 1].centro.x - states[states.length - 1].centro.x;
-		let [a, b, ang] = ( distancia_izda <= distancia_dcha) ? [equis[0], states[0], Math.PI / 2]: [equis[equis.length - 1], states[states.length-1], -Math.PI / 2];
-		console.log('equis(): ', equis);
+		let izda = equis[0].centro;
+		let [centro, _radius] = circuloTresPuntos(izda, states[0].centro, states[states.length - 1].centro);
+		let ang = Math.atan2(izda.y - centro.y, centro.x - izda.x) + Math.PI;
 		let trans = TransicionGrafica.new(states[states.length-1], states[0]);
 		trans.texto = 'ɛ';
-		let atan = Math.atan2(b.centro.y - a.centro.y, a.centro.x - b.centro.x) + ang;
-		console.log('atan: ', atan);
-		trans.puntero = new Punto(<number>(a.centro.x) + 30 * Math.cos(atan), (<number>a.centro.y) - 30 * Math.sin(atan) - 5);
+		trans.puntero = new Punto(izda.x + 30 * Math.cos(ang), izda.y - 30 * Math.sin(ang));
 		trans.modificando = true;
 		trans.reversed = true;
 		automata.transiciones.push(trans);
 
 		max = Math.max(...states.map(x => x.centro.y));
 		equis = states.filter( x => x.centro.y >= max).sort((a, b) => a.centro.x - b.centro.x);
-		distancia_izda = equis[0].centro.x - states[0].centro.x;
-		distancia_dcha = states[states.length - 1].centro.x - equis[equis.length - 1].centro.x;
-		[a, b, ang] = ( distancia_izda <= distancia_dcha) ? [equis[0], states[0], -Math.PI / 2]: [equis[equis.length - 1], states[states.length-1], Math.PI / 2];
-		console.log('equis(): ', equis);
-		let trans2 = TransicionGrafica.new(states[0], states[states.length-1]);
+		izda = equis[0].centro;
+		[centro, _radius] = circuloTresPuntos(izda, states[0].centro, states[states.length - 1].centro);
+		ang = Math.atan2(izda.y - centro.y, centro.x - izda.x) + Math.PI;
+		let trans2 = TransicionGrafica.new(states[states.length-1], states[0]);
 		trans2.texto = 'ɛ';
-		atan = Math.atan2(b.centro.y - a.centro.y, a.centro.x - b.centro.x) + ang;
-		console.log('atan: ', atan);
-		trans2.puntero = new Punto(<number>(a.centro.x) + 30 * Math.cos(atan), (<number>a.centro.y) - 30 * Math.sin(atan) + 5);
+		trans2.puntero = new Punto(izda.x + 30 * Math.cos(ang), izda.y - 30 * Math.sin(ang));
 		trans2.modificando = true;
 		trans2.reversed = true;
 		automata.transiciones.push(trans2);
 
-
 		automata.draw();
-		console.log('trans: ', trans);
 		trans.modificando = false;
 		trans2.modificando = false;
 		return [states, height];
