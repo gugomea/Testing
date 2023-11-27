@@ -16,7 +16,8 @@ export class NFA {
 					let trans = TransicionGrafica.new(comienzo, fin);
 					trans.texto = 'ɛ';
 					let long = (comienzo.centro.x + fin.centro.x) / 2;
-					trans.puntero = new Punto(long, comienzo.centro.y + (long / 6 * ((comienzo.centro == tangente) ? -1: 1)));
+					let dist = Math.abs(comienzo.centro.x - fin.centro.x);
+					trans.puntero = new Punto(long, comienzo.centro.y + (dist / 5 * ((comienzo.centro == tangente) ? -1: 1)));
 					trans.modificando = true;
 					trans.reversed = true;
 					automata.transiciones.push(trans);
