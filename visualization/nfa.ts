@@ -12,6 +12,19 @@ export class NFA {
 	tangent(automata: AutomataGrafico) {
 			this.tangents.forEach((elemento) => {
 				let [comienzo, fin, tangente] = elemento;
+				if(comienzo.centro == tangente || fin.centro == tangente) {
+					let trans = TransicionGrafica.new(comienzo, fin);
+					trans.texto = 'ɛ';
+					let long = (comienzo.centro.x + fin.centro.x) / 2;
+					trans.puntero = new Punto(long, comienzo.centro.y + (long / 6 * ((comienzo.centro == tangente) ? -1: 1)));
+					trans.modificando = true;
+					trans.reversed = true;
+					automata.transiciones.push(trans);
+
+					automata.draw();
+					trans.modificando = false;
+					return;
+				}
 				let [centro, _radius] = circuloTresPuntos(tangente, comienzo.centro, fin.centro);
 				let ang = Math.atan2(tangente.y - centro.y, centro.x - tangente.x) + Math.PI;
 
