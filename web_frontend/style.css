@@ -1,0 +1,33 @@
+.container {
+    display: flex;
+    border: 2px solid #606060;
+	height: 100%;
+    width: 100%;
+}
+.left_container {
+    width: 50%;
+}
+.center_container {
+    /*background-color: #606060;*/
+    border: 2px solid #606060;
+	border-top: none;
+	border-bottom: none;
+    cursor: ew-resize;
+    width: 6px;
+}
+.right_container {
+    flex: 1;
+}
+
+.tags {
+    display: grid;
+    width: 80%;
+	grid-gap: 30px;
+	padding-right: 10%; 
+	padding-left: 10%; 
+}
+.tag {
+    border: 2px solid #606060;
+	padding: 10px;
+	border-radius: 10px;
+}
