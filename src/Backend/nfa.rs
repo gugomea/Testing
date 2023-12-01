@@ -1,42 +1,36 @@
-use std::ops::Add;
 use crate::Backend::intervals::Interval;
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
-pub struct Transition<T> {
-    start : Interval,
-    end: Vec<T>
+pub struct Transition<Domain, Image> {
+    start : Domain,
+    end: Image
 }
 
-impl<T: Add<Output = T> + Copy + Clone> Transition<T> {
-    pub fn new(start: Interval, end: Vec<T>) -> Self {
+impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq> Transition<Domain, Image> {
+    pub fn new(start: Domain, end: Image) -> Self {
         Transition { start, end }
     }
 
-    pub fn empty(start: Interval) -> Self {
-        Transition::new(start, vec![])
-    }
-
-    pub fn push(&mut self, destination: T) {
-        self.end.push(destination);
+    pub fn empty(start: Domain) -> Self {
+        Transition::new(start, Image::default())
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
-pub struct Table<T> {
-    transitions: Vec<Transition<T>>,
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+pub struct Table<Domain, Image> {
+    transitions: Vec<Transition<Domain, Image>>,
 }
 
-impl<T: Add<Output = T> + Copy + Clone> Table<T> {
-    fn get_mut(&mut self, it: Interval) -> Option<&mut Transition<T>> {
+impl<Domain, Image> Default for Table<Domain, Image> {
+    fn default() -> Self {
+        Self { transitions: vec![] }
+    }
+}
+
+impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq> Table<Domain, Image> {
+    fn get_mut(&mut self, it: Domain) -> Option<&mut Transition<Domain, Image>> {
         self.transitions.iter_mut().find(|x| x.start == it)
-    }
-
-    pub fn push(&mut self, it: Interval, destination: T) {
-        match self.get_mut(it) {
-            Some(transition) => transition.push(destination),
-            None => self.transitions.push(Transition::new(it, vec![destination])),
-        }
     }
 }
 
@@ -45,7 +39,7 @@ pub struct NFA {
     pub n_states: usize,
     pub current: usize,
     pub empty_transitions: Vec<Vec<isize>>,
-    pub transition_function: Vec<Table<isize>>,
+    pub transition_function: Vec<Table<Interval, Vec<isize>>>,
 }
 
 impl Default for NFA {
@@ -110,7 +104,11 @@ impl NFA {
     pub fn concat_directly(nfa1: Self, nfa2: Self, interval: Interval) -> Self {
         let (n, m) = (nfa1.n_states, nfa2.n_states);
         let mut tf = [nfa1.transition_function, nfa2.transition_function[1..].to_vec()].concat();
-        tf.get_mut(n - 1).unwrap().push(interval, 1);
+        let last = tf.get_mut(n - 1).unwrap();
+        match last.get_mut(interval) {
+            Some(table) => table.end.push(1),
+            None => last.transitions.push(Transition::new(interval, vec![1])),
+        }
 
         Self {
             n_states: n + m - 1,
