@@ -1,28 +1,27 @@
 <head>
+	<meta charset="UTF-8">
 	<link rel="stylesheet" type="text/css" href="./style.css">
 	<script src="./App.js"> </script>
+	<script type="module" src="./visualization/index.js" ></script>
+	<script type="module" src="./visualization/elementos_logicos.js"></script>
+	<script type="module" src="./visualization/elementos_graficos.js"></script>
 </head>
 <html>
 	<body>
 		<div class="container" id='main-container'>
 			<div class="left_container" id='left'>
-				<p>Lorem ipsum dolor sit amet, officia excepteur ex fugiat reprehenderit enim labore culpa sint ad nisi Lorem pariatur mollit ex esse exercitation amet. Nisi anim cupidatat excepteur officia. Reprehenderit nostrud nostrud ipsum Lorem est aliquip amet voluptate voluptate dolor minim nulla est proident. Nostrud officia pariatur ut officia. Sit irure elit esse ea nulla sunt ex occaecat reprehenderit commodo officia dolor Lorem duis laboris cupidatat officia voluptate. Culpa proident adipisicing id nulla nisi laboris ex in Lorem sunt duis officia eiusmod. Aliqua reprehenderit commodo ex non excepteur duis sunt velit enim. Voluptate laboris sint cupidatat ullamco ut ea consectetur et est culpa et culpa duis.</p>
+				<h2 class="left_element">Enter the input</h2>
+				<form id="form" class="left_element">
+					<input id="input" type="text" size="20" placeholder="regex pattern">
+					<input type="submit">
+				</form>
+				<textarea class="left_element" id="input_text" spellcheck="false">.</textarea>
 			</div>
 			<div class="center_container" id="center"></div>
 			<div class="right_container" id='right'>
-				<p>Lorem ipsum dolor sit amet, officia excepteur ex fugiat reprehenderit enim labore culpa sint ad nisi Lorem pariatur mollit ex esse exercitation amet. Nisi anim cupidatat excepteur officia. Reprehenderit nostrud nostrud ipsum Lorem est aliquip amet voluptate voluptate dolor minim nulla est proident. Nostrud officia pariatur ut officia. Sit irure elit esse ea nulla sunt ex occaecat reprehenderit commodo officia dolor Lorem duis laboris cupidatat officia voluptate. Culpa proident adipisicing id nulla nisi laboris ex in Lorem sunt duis officia eiusmod. Aliqua reprehenderit commodo ex non excepteur duis sunt velit enim. Voluptate laboris sint cupidatat ullamco ut ea consectetur et est culpa et culpa duis.</p>
-				<div class='tags'>
-					<div class='tag' id='tag1'>
-						Esto es la tag 1
-					</div>
-					<div class='tag' id='tag2'>
-						Esto es la tag 2
-					</div>
-					<div class='tag' id='tag3'>
-						Esto es la tag 3
-					</div>
-				</div>
+				<canvas id="canvas"></canvas>
 			</div>
 		</div>
 	</body>
 </html>
+
