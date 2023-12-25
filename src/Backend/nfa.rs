@@ -29,8 +29,22 @@ impl<Domain, Image> Default for Table<Domain, Image> {
 }
 
 impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq> Table<Domain, Image> {
-    fn get_mut(&mut self, it: Domain) -> Option<&mut Transition<Domain, Image>> {
+    pub fn get_mut(&mut self, it: Domain) -> Option<&mut Transition<Domain, Image>> {
         self.transitions.iter_mut().find(|x| x.start == it)
+    }
+
+    pub fn get(&self, it: Domain) -> Option<&Image> {
+        Some(&self.transitions.iter().find(|x| x.start == it)?.end)
+    }
+
+    pub fn from_tuples(transitions: Vec<(Domain, Image)>) -> Self {
+        Self { 
+            transitions: transitions.into_iter().map(|(d, i)| Transition::new(d, i)).collect(),
+        }
+    }
+
+    pub fn add(&mut self, d: Domain, i: Image) {
+        self.transitions.push(Transition::new(d, i));
     }
 }
 
@@ -61,6 +75,14 @@ impl NFA {
         if !leads_to_one_state { return None; }
         
         return Some(tf.transitions[0].start);
+    }
+
+    pub fn alphabet(&self) -> Vec<Interval> {
+        self.transition_function
+            .iter()
+            .map(|ei| ei.transitions.iter().map(|x| x.start))
+            .flatten()
+            .collect()
     }
 
     pub fn simple(it: Interval) -> Self {
