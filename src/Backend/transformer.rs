@@ -29,9 +29,7 @@ fn empty_transitions(nfa: &NFA, state: isize) -> Vec<isize> {
             }
         }
     }
-
     //println!("  resulting empty transitions from state: {state}: {:?}", result);
-
     return result;
 }
 
@@ -51,9 +49,7 @@ fn δn(nfa: &NFA, L: &ComplexState, a: Interval) -> Option<ComplexState> {
     let from_empty = from_letter.iter()//.chain(&L.states)
         .flat_map(|state| empty_transitions(nfa, *state))
         .collect::<Vec<_>>();
-    let mut all = [from_letter, from_empty].concat();
-    all.sort();
-    all.dedup();
+    let all = [from_letter, from_empty].concat();
 
     match all.is_empty() {
         true => None,
@@ -149,6 +145,7 @@ struct ComplexState {
 impl ComplexState {
     fn new(mut states: Vec<isize>) -> Self {
         states.sort();
+        states.dedup();
         let mut hasher = DefaultHasher::new();
         states.hash(&mut hasher);
         let calculated_hash = hasher.finish();
