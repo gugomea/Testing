@@ -140,6 +140,37 @@ impl NFA {
         }
     }
 
+    pub fn concat_all_directly(mut nfas: impl Iterator<Item = Self>) -> Self {
+        let first = nfas.next().unwrap();
+        //println!("FIRST: {:#?}", first);
+        let mut tfs = first.transition_function;
+        let mut ets = first.empty_transitions;
+
+        for (_i, mut nfa) in nfas.enumerate() {
+            //println!("current: {:?}", nfa);
+            let mut l_ets = ets.pop().unwrap();
+            let l_tfs = tfs.pop().unwrap();
+            for mut t in l_tfs.transitions {
+                match nfa.transition_function[0].get_mut(t.start) {
+                    Some(v) => v.end.append(&mut t.end),
+                    None => nfa.transition_function[0].transitions.push(t),
+                }
+            }
+
+            nfa.empty_transitions[0].append(&mut l_ets);
+
+            tfs.append(&mut nfa.transition_function);
+            ets.append(&mut nfa.empty_transitions);
+        }
+
+        Self {
+            n_states: tfs.len(),
+            current: 0,
+            empty_transitions: ets,
+            transition_function: tfs,
+        }
+    }
+
     pub fn concat_all(nfas: impl Iterator<Item = Self>) -> Self {
         let mut tfs = vec![];
         let mut ets = vec![];
@@ -240,6 +271,8 @@ fn concatenation() {
     println!("{:#?}", NFA::concat(nfa1.clone(), nfa2.clone()));
 
     println!("{:#?}", NFA::concat_directly(nfa1.clone(), nfa2.clone(), Interval::char('b')));
+
+    println!("{:#?}", NFA::concat_all_directly(vec![nfa1.clone(), nfa2.clone()].into_iter()));
 }
 
 #[test]

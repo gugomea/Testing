@@ -22,7 +22,7 @@ fn empty_transitions(nfa: &NFA, state: isize) -> Vec<isize> {
         visited.push(last);
         let locations = &nfa.empty_transitions[last as usize];
         for location in locations {
-            let location = location + state;
+            let location = location + last;
             if !visited.contains(&location) {
                 stack.push(location);
                 result.push(location);
@@ -30,7 +30,7 @@ fn empty_transitions(nfa: &NFA, state: isize) -> Vec<isize> {
         }
     }
 
-    println!("  resulting empty transitions from state: {state}: {:?}", result);
+    //println!("  resulting empty transitions from state: {state}: {:?}", result);
 
     return result;
 }
@@ -51,7 +51,6 @@ fn δn(nfa: &NFA, L: &ComplexState, a: Interval) -> Option<ComplexState> {
     let from_empty = from_letter.iter()//.chain(&L.states)
         .flat_map(|state| empty_transitions(nfa, *state))
         .collect::<Vec<_>>();
-
     let mut all = [from_letter, from_empty].concat();
     all.sort();
     all.dedup();
@@ -82,7 +81,16 @@ pub fn nfa_to_dfa(nfa: &NFA) -> DFA {
     // if nfa.n_states > 0 { unimplemented!("Falta implementar que los intervalos sean todos disjuntos"); }
 
     let mut D = vec![ComplexState::new([vec![0], empty_transitions(nfa, 0)].concat())];
-    let Σ = nfa.alphabet();
+    //let Σ = nfa.alphabet();
+    let Σ = vec![
+        Interval::new('a', 'a'),
+        Interval::new('b', 'b'),
+        Interval::new('c', 'c'),
+        Interval::new('d', 'd'),
+        Interval::new('e', 'e'),
+        Interval::new('f', 'f'),
+    ];
+    //println!("alphabet: {:?}", Σ);
     let mut δd = vec![Table::default()];
 
     let mut nfa_to_dfa_states: HashMap<ComplexState, usize> = HashMap::new();
@@ -178,9 +186,15 @@ fn hash_test() {
 fn simple_compilation() {
     use crate::Frontend::parser::parse;
     use super::build::build;
-    let regex = parse("ab|cd").unwrap();
+    //let input = "((a|bc|de*)+|((f)))f+f?".repeat(1);
+    let input = "(a|b)|cd".repeat(1);
+    let instant = std::time::Instant::now();
+    let regex = parse(&input).unwrap();
     let nfa = build(regex);
-    println!("{:#?}", nfa);
+    //println!("{:#?}", nfa);
     let dfa = nfa_to_dfa(&nfa);
+    let elapsed = instant.elapsed();
+    println!("elapsed: {:?}", elapsed);
+
     dbg!(dfa);
 }

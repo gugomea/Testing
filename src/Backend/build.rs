@@ -10,7 +10,7 @@ pub fn build(input: Expression) -> NFA {
         Expression::optional(exp)=> NFA::optional(build(*exp)),
         Expression::one_or_more(exp)=> NFA::one_or_more(build(*exp)),
         Expression::zero_or_more(exp)=> NFA::zero_or_more(build(*exp)),
-        Expression::concatenation(expressions)=> NFA::concat_all(expressions.into_iter().map(build)),
+        Expression::concatenation(expressions)=> NFA::concat_all_directly(expressions.into_iter().map(build)),
         Expression::union(expressions)=> NFA::union(expressions.into_iter().map(build).collect()),
         Expression::group(exp)=> build(*exp),
         Expression::empty => NFA::default(),
