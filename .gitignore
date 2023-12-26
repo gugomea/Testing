@@ -1,4 +1,2 @@
 /target
 /Cargo.lock
-/visualization/*.js
-/web_frontend/visualization/*.js

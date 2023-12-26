@@ -2,7 +2,7 @@
 // Which, export default's, an initialization function
 
 import {AutomataGrafico, Punto} from "./elementos_graficos.js";
-import { initSync, build_automata } from "../../pkg/automata.js";
+import { initSync, build_automata } from "../pkg/automata.js";
 import { NFA } from "./nfa.js";
 
 async function fetchWasm() {
