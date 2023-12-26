@@ -15,7 +15,7 @@ import { NFA } from "./nfa.js";
 function fetchWasm() {
     return __awaiter(this, void 0, void 0, function* () {
         // Instantiate our wasm module
-        const response = yield fetch("../../pkg/automata_bg.wasm");
+        const response = yield fetch("../pkg/automata_bg.wasm");
         const buffer = yield response.arrayBuffer();
         initSync(buffer);
     });
