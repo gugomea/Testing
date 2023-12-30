@@ -7,25 +7,24 @@ use super::nfa::NFA;
 fn GNFA_fromNFA() {
         use crate::Frontend::parser::parse;
         use crate::Backend::build::build;
-        let input = "ab|cd";
-        let regex = parse(input).unwrap();
-        let nfa = build(regex);
 
-        //println!("TF: {:?}", nfa.transition_function);
-        //println!("Epsilon: {:?}", nfa.empty_transitions);
-        let start = NFA::default();
-        let end = NFA::default();
-        let left_nfa = NFA::concat(start, nfa);
-        let nfa = NFA::concat(left_nfa, end);
+        let input = "(ab)*";
+        let regex_ast = parse(input).unwrap();
+        let nfa = build(regex_ast);
+
+        let (start, end) = (NFA::default(), NFA::default());
+        let nfa = NFA::concat_all([start, nfa, end].into_iter());
         let GNFA = GNFA::from_nfa(&nfa);
-        //println!("{:#?}", GNFA);
 
-        println!("{}", nfa.n_states);
         for i in 1..nfa.n_states - 1 {
             GNFA.rip_state(i);
         }
 
-        println!("{:#?}", GNFA.flow.borrow().get(&(0, 8)));
+        for (k, v) in GNFA.flow.borrow().iter() {
+            if k == &(0, GNFA.n_states - 1) {
+                println!("{:?} => {}", k, v);
+            }
+        }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,25 +81,19 @@ impl GNFA {
             .filter(|((from, to), _)| *from == state && !ripped.contains(to))
             .collect::<Vec<_>>();
 
-        //println!("OUT OF  STATE: {} \n {:?}", state, R);
-
+        let self_transition= Q.iter()
+            .find(|((from, to), _)| *from == state && *to == state)
+            .map(|(_, exp)| Expression::zero_or_more(Box::new(exp.clone())))
+            .unwrap_or(Expression::empty);
         for ((Qi, _), Ei) in &Q {
-            let mut self_transition: Vec<Expression> = std::iter::zip(Q.iter(), R.iter())
-                .filter(|((qi, _), (rj, _))| qi == rj)
-                .map(|(x, _)| x.1.clone())
-                .collect();
-            let left_side = match self_transition.len() {
-                0 => Ei.clone(),
-                1 => Expression::concatenate(Ei.clone(), Expression::zero_or_more(Box::new(self_transition.pop().unwrap()))),
-                _ => Expression::concatenate(Ei.clone(), Expression::zero_or_more(Box::new(Expression::union(self_transition)))),
-            };
+            let left_side = Expression::concatenate(Ei.clone(), self_transition.clone());
+
             for((_, Rj), Ej) in &R {
                 let right_side = Ej.clone();
                 if *Qi == *Rj && *Qi == state {
                     continue;
                 }
                 let full_expression = Expression::concatenate(left_side.clone(), right_side);
-                //println!("Desde {} hasta {}", Qi, Rj);
                 match flow.get_mut(&(*Qi, *Rj)) {
                     Some(Expression::union(v)) => v.push(full_expression),
                     Some(value) => *value = Expression::union(vec![value.clone(), full_expression]),
