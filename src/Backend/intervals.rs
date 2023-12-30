@@ -1,4 +1,4 @@
-use crate::Frontend::tokens::Literal;
+use crate::Frontend::tokens::{Literal, Expression};
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
@@ -27,6 +27,13 @@ impl Interval {
             (Some(l1), None) => vec![Interval::new(f1, l1)].into_iter(),
             (None, Some(f2)) => vec![Interval::new(f2, l2)].into_iter(),
             _ => vec![].into_iter(),
+        }
+    }
+
+    pub fn exp(&self) -> Literal {
+        match self.first == self.last {
+            true => Literal::atom(self.first),
+            false => Literal::range(self.first..=self.last),
         }
     }
 

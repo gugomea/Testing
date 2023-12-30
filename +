@@ -1,0 +1,177 @@
+use std::{cell::RefCell, collections::HashMap};
+use serde::{Serialize, Deserialize};
+use crate::Frontend::tokens::{Expression, Literal};
+
+use super::nfa::NFA;
+
+#[test]
+fn GNFA() {
+    use crate::Frontend::tokens::Literal;
+    //(a|b)*c
+    let flow_into = vec![
+        vec![],
+        vec![
+            (0, Expression::empty),
+            (2, Expression::empty),
+        ],
+        vec![
+            (1, Expression::union(
+                    vec![
+                    Expression::l(Literal::atom('a')),
+                    Expression::l(Literal::atom('b')),
+                    Expression::empty,
+                    ]))
+        ],
+        vec![
+            (2, Expression::l(Literal::atom('c'))),
+        ],
+        vec![
+            (3, Expression::empty),
+        ],
+    ];
+
+    let flow_out = vec![
+        vec![
+            (1, Expression::empty),
+        ],
+        vec![
+            (2, Expression::union(
+                    vec![
+                    Expression::l(Literal::atom('a')),
+                    Expression::l(Literal::atom('b')),
+                    Expression::empty,
+                    ])
+            )],
+            vec![
+                (1, Expression::empty),
+                (3, Expression::l(Literal::atom('c'))),
+            ],
+            vec![
+                (4, Expression::empty),
+            ],
+            vec![],
+    ];
+
+    let gnfa = GNFA {
+        n_states: 4,
+        current: 0,
+        flow_into: RefCell::new(flow_into),
+        flow_out: RefCell::new(flow_out),
+    };
+
+    gnfa.rip_state(1);
+    gnfa.rip_state(1);
+    gnfa.rip_state(1);
+    //dbg!(&gnfa);
+    for p in gnfa.flow_out.borrow().iter() {
+        for exp in p {
+            println!("{}", exp.1);
+        }
+    }
+
+    for p in gnfa.flow_into.borrow().iter() {
+        for exp in p {
+            println!("{}", exp.1);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GNFA {
+    n_states: usize,
+    current: usize,
+    flow_into: RefCell<Vec<Vec<(usize, Expression)>>>,
+    flow_out: RefCell<Vec<Vec<(usize, Expression)>>>,
+}
+
+
+impl GNFA {
+
+    fn from_nfa(nfa: &NFA) -> Self {
+        let n_states = nfa.n_states;
+
+        let mut flow_into: HashMap<usize, Vec<Expression>> = HashMap::new();
+        let mut flow_out: HashMap<usize, Vec<Expression>> = HashMap::new();
+        let mut flow_out = vec![vec![]; n_states];
+        for i in 0..n_states {
+            let empty = [(Expression::empty, nfa.empty_transitions[i].clone())].into_iter();
+            let current = nfa.transition_function[i].transitions.clone()
+                .into_iter()
+                .map(|x| (Expression::l(x.start.exp()), x.end))
+                .chain(empty);
+
+            for (exp, transitions) in current {
+                for t in transitions {
+                    let t = (t + i as isize) as usize;
+                    flow_out[i].push((exp.clone(), t));
+                    flow_into[t].push((exp.clone(), i));
+                }
+            }
+        }
+
+        todo!()
+    }
+
+    fn rip_state(&self, state: usize) {
+
+        let mut into = self.flow_into.borrow_mut();
+        let mut out = self.flow_out.borrow_mut();
+        let Q = into[state].clone();
+        let R = out[state].clone();
+
+        for (Qi, Ei) in &Q {
+            let left_side = Ei;
+
+            let self_transition = std::iter::zip(Q.iter(), R.iter())
+                .find(|((qi, _), (rj, _))| qi == rj)
+                .map(|x| Expression::zero_or_more(Box::new(x.0.1.clone())))
+                .unwrap_or(Expression::empty);
+
+            for(Rj, Ej) in R.iter() {
+                let right_side = Ej.clone();
+
+                if Qi == Rj && *Qi == state {
+                    continue;
+                }
+
+                let left_side = Expression::concatenate(&left_side, &self_transition);
+                let full_expression = Expression::concatenate(&left_side, &right_side);
+
+                out[*Qi].push((*Rj, full_expression.clone()));
+                into[*Rj].push((*Qi, full_expression));
+            }
+        }
+
+        for v in into.iter_mut() {
+            let aux: Vec<_> = v.clone()
+                .into_iter().enumerate()
+                .filter(|(_idx, (i, _))| *i != state)
+                .map(|(_, (i, e))|  match i > state {
+                    true => (i - 1, e),
+                    false => (i, e),
+                }).collect();
+            *v = aux;
+        }
+
+        for v in out.iter_mut() {
+            let aux: Vec<_> = v.clone()
+                .into_iter().enumerate()
+                .filter(|(_idx, (i, _))| *i != state)
+                .map(|(_, (i, e))|  match i > state {
+                    true => (i - 1, e),
+                    false => (i, e),
+                }).collect();
+            *v = aux;
+        }
+
+        into.remove(state);
+        out.remove(state);
+    }
+}
+
+pub fn nfa_to_regex(nfa: &GNFA) -> Expression {
+
+    let n = nfa.n_states;
+
+    unimplemented!()
+}

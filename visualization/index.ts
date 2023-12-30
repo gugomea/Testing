@@ -7,7 +7,7 @@ import { NFA } from "./nfa.js";
 
 async function fetchWasm() {
 	// Instantiate our wasm module
-	const response = await fetch("../pkg/automata_bg.wasm");
+	const response = await fetch("pkg/automata_bg.wasm");
 	const buffer = await response.arrayBuffer();
 	initSync(buffer);
 };

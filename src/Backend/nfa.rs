@@ -3,8 +3,8 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Transition<Domain, Image> {
-    start : Domain,
-    end: Image
+    pub start : Domain,
+    pub end: Image
 }
 
 impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq> Transition<Domain, Image> {
@@ -19,7 +19,7 @@ impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq> Transition<D
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Table<Domain, Image> {
-    transitions: Vec<Transition<Domain, Image>>,
+    pub transitions: Vec<Transition<Domain, Image>>,
 }
 
 impl<Domain, Image> Default for Table<Domain, Image> {
