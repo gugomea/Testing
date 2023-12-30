@@ -8,7 +8,8 @@ fn GNFA_fromNFA() {
         use crate::Frontend::parser::parse;
         use crate::Backend::build::build;
 
-        let input = "(ab)*";
+        let input = "a*b*";
+        println!("input regex: {}", input);
         let regex_ast = parse(input).unwrap();
         let nfa = build(regex_ast);
 
@@ -17,14 +18,15 @@ fn GNFA_fromNFA() {
         let GNFA = GNFA::from_nfa(&nfa);
 
         for i in 1..nfa.n_states - 1 {
+            println!("ripping state {i}...");
             GNFA.rip_state(i);
+            GNFA.flow.borrow()
+                .iter()
+                .for_each(|(k, v)| println!("{:?} => {}", k , v));
+            //println!("{}", GNFA.flow.borrow().get(&(0, i + 1)).unwrap());
         }
 
-        for (k, v) in GNFA.flow.borrow().iter() {
-            if k == &(0, GNFA.n_states - 1) {
-                println!("{:?} => {}", k, v);
-            }
-        }
+        println!("Resulting regex: {}", GNFA.flow.borrow().get(&(0, GNFA.n_states - 1)).unwrap());
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,23 +73,22 @@ impl GNFA {
     fn rip_state(&self, state: usize) {
         let mut ripped = self.ripped.borrow_mut();
         assert!(!ripped.contains(&state), "This state has been ripped, the order of the sates doesn't change");
-
         
         let mut flow = self.flow.borrow_mut();
-        let Q = flow.clone().into_iter()
+        let Q: Vec<_> = flow.clone().into_iter()
             .filter(|((from, to), _)| *to == state && !ripped.contains(from))
-            .collect::<Vec<_>>();
-        let R = flow.clone().into_iter()
+            .collect();
+        let R: Vec<_> = flow.clone().into_iter()
             .filter(|((from, to), _)| *from == state && !ripped.contains(to))
-            .collect::<Vec<_>>();
+            .collect();
 
         let self_transition= Q.iter()
             .find(|((from, to), _)| *from == state && *to == state)
             .map(|(_, exp)| Expression::zero_or_more(Box::new(exp.clone())))
             .unwrap_or(Expression::empty);
+
         for ((Qi, _), Ei) in &Q {
             let left_side = Expression::concatenate(Ei.clone(), self_transition.clone());
-
             for((_, Rj), Ej) in &R {
                 let right_side = Ej.clone();
                 if *Qi == *Rj && *Qi == state {

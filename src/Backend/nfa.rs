@@ -227,15 +227,29 @@ impl NFA {
 
     }
 
+    pub fn push_empty(&mut self) {
+        let n = self.n_states;
+        self.n_states += 1;
+        self.empty_transitions[n - 1].push(1);
+        self.transition_function.push(Table::default());
+        self.empty_transitions.push(vec![]);
+    }
+
     pub fn optional(mut nfa: NFA) -> Self {
         let n = nfa.n_states as isize;
         nfa.empty_transitions[0].push(n - 1);
+        //IMPORTANT
+        nfa.push_empty();
+        //IMPORTANT
         nfa
     }
 
     pub fn one_or_more(mut nfa: NFA) -> Self {
         let n = nfa.n_states;
         nfa.empty_transitions[n - 1].push(-(n as isize) + 1);
+        //IMPORTANT
+        nfa.push_empty();
+        //IMPORTANT
         nfa
     }
 
@@ -243,6 +257,9 @@ impl NFA {
         let n = nfa.n_states;
         nfa.empty_transitions[0].push(n as isize - 1);
         nfa.empty_transitions[n - 1].push(-(n as isize) + 1);
+        //IMPORTANT
+        nfa.push_empty();
+        //IMPORTANT
         nfa
     }
 
