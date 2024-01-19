@@ -59,7 +59,7 @@ export class TransicionGrafica {
 	visible: Boolean;
 	texto: string;
 	
-	constructor(nodoI: NodoGrafico | Punto, nodoF: NodoGrafico | Punto) {
+	constructor(nodoI: NodoGrafico | Punto, nodoF: NodoGrafico | Punto, letter?: string) {
 		this.nodoI = nodoI;
 		this.nodoF = nodoF;
 		this.aux = 0;
@@ -67,13 +67,14 @@ export class TransicionGrafica {
 		this.modificando = true;
 		this.reversed = false;
 		this.visible = false;
-		this.texto = "";
+		this.texto = (letter == undefined) ? "": letter!;
 	}
 
-	static new(nodoI: NodoGrafico, nodoF: NodoGrafico) : TransicionGrafica {
+	static new(nodoI: NodoGrafico, nodoF: NodoGrafico, letter?: string) : TransicionGrafica {
 		let t = new TransicionGrafica(nodoI, nodoF);
 		t.aux = 0.1;
 		t.modificando = false;
+		t.texto = (letter == undefined) ? "": letter!;
 		return t;
 	}
 

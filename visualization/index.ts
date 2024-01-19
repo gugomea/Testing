@@ -3,7 +3,7 @@
 
 import {AutomataGrafico, Punto} from "./elementos_graficos.js";
 import { initSync, build_automata } from "../pkg/automata.js";
-import { NFA } from "./nfa.js";
+import { NFA_BUILDER } from "./new_nfa.js";
 
 async function fetchWasm() {
 	// Instantiate our wasm module
@@ -63,7 +63,7 @@ function initEventos() {
 		console.log('ast: ', ast);
 		automata.clear();
 		const h = canvas.height;
-		new NFA().draw_automata(automata, ast, new Punto(50, h / 2));
+		new NFA_BUILDER().draw_automata(automata, ast, new Punto(50, h / 2));
 		automata.draw();
 	});
 
