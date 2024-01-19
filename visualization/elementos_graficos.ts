@@ -1,4 +1,5 @@
 import { NodoLogico, AutomataLogico } from "./elementos_logicos.js";
+import { Concatenation, NEW_NFA } from "./new_nfa.js";
 
 export class Punto {
 	x: number;
@@ -249,8 +250,7 @@ export class TransicionGrafica {
 
 export class AutomataGrafico {
 	logico: AutomataLogico;
-	nodos: Array<NodoGrafico>;
-	transiciones: Array<TransicionGrafica>;
+    nfa: NEW_NFA;
 	canvas: HTMLCanvasElement;
 	ctx: CanvasRenderingContext2D;
 	draggin: null | NodoGrafico;
@@ -260,17 +260,32 @@ export class AutomataGrafico {
 	visibilidad: Boolean;//estado de la visibilidad del autómata.
 	control: Boolean;
 
+    remove() {
+        if(this.elemento_seleccionado != undefined) {
+            if(this.elemento_seleccionado instanceof TransicionGrafica) {
+                this.nfa.remove_transition(this.elemento_seleccionado);
+            } else if(this.elemento_seleccionado instanceof NodoGrafico) {
+                let [from, to] = this.nfa.rip_node(this.elemento_seleccionado);
+                from.forEach(t => this.nfa.remove_transition(t));
+                to.forEach(t => this.nfa.remove_transition(t));
+            }
+            this.elemento_seleccionado = null;
+            this.draw();
+        }
+    }
+
 	constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
 		this.canvas = canvas;
 		this.ctx = ctx;
-		this.nodos = new Array();
-		this.transiciones = new Array();
+		//this.nfa.nodes = new Array();
+		//this.nfa.transitions = new Array();
 		this.control = false;
 	}
 
 	clear() {
-		this.nodos = new Array();
-		this.transiciones = new Array();
+		//this.nfa.nodes = new Array();
+		//this.nfa.transitions = new Array();
+        this.nfa = new Concatenation(new NodoGrafico(0, new Punto(0, 0)));
 		this.draggin = null;
 		this.shaping_transition = null;
 		this.creating_transition = null;
@@ -297,6 +312,7 @@ export class AutomataGrafico {
 	}
 
 	cambiar_texto(texto: string) {
+        if(this.nfa == undefined) return;
 		if(texto == 'Control') this.control = true;
 
 		if(this.elemento_seleccionado != null) {
@@ -316,10 +332,11 @@ export class AutomataGrafico {
 	}
 
 	draw() {
+        if(this.nfa == undefined) return;
 		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-		this.transiciones.forEach(n => n.draw(this.ctx));
+		this.nfa.transitions.forEach(n => n.draw(this.ctx));
 
-		this.nodos.forEach(n => n.draw(this.ctx));
+		this.nfa.nodes.forEach(n => n.draw(this.ctx));
 		this.ctx.beginPath();
 
 		if(this.creating_transition != null) this.creating_transition.draw(this.ctx);
@@ -331,8 +348,8 @@ export class AutomataGrafico {
 
 	closest_circle(p: Punto): NodoGrafico | null {
 		let seleccionados: NodoGrafico[] = [];
-		for (let idx = 0; idx < this.nodos.length; idx++) {
-			const element = this.nodos[idx];
+		for (let idx = 0; idx < this.nfa.nodes.length; idx++) {
+			const element = this.nfa.nodes[idx];
 			if(element.dist(p) <= element.radio) {
 				seleccionados.push(element);
 			}
@@ -355,8 +372,8 @@ export class AutomataGrafico {
 		let epsilon = 10;
 		let closest: TransicionGrafica | null = null;
 		let minimo = Infinity;
-		for (let idx = 0; idx < this.transiciones.length; idx++) {
-			const element = this.transiciones[idx];
+		for (let idx = 0; idx < this.nfa.transitions.length; idx++) {
+			const element = this.nfa.transitions[idx];
 			let distancia = element.dist(p);
 			if(distancia <= epsilon && distancia < minimo) {
 				closest = element;
@@ -388,7 +405,7 @@ export class AutomataGrafico {
 				this.elemento_seleccionado = linea;
 				}
 				else {//no hay nada, creamos un nuevo nodo.
-					this.nodos.push(new NodoGrafico(1, p));
+					this.nfa.nodes.push(new NodoGrafico(1, p));
 				}
 			}
 		} else if(evt.button == 2) { //right-click
@@ -437,7 +454,7 @@ export class AutomataGrafico {
 			if(circle != null) {
 				t.nodoF = circle;
 				t.modificando = false; //TODO
-				this.transiciones.push(t);
+				this.nfa.transitions.push(t);
 			}
 		}
 		this.creating_transition = null;

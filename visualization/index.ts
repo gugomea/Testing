@@ -70,7 +70,10 @@ function initEventos() {
 	canvas.addEventListener('mouseenter', (_) => mouse_in_canvas = true);
 	canvas.addEventListener('mouseleave', (_) => mouse_in_canvas = false);
 	window.addEventListener('keydown', (e) => automata.cambiar_texto(e.key));
-	window.addEventListener('keyup', (e) => { if(e.key == 'Control') automata.control = false });
+	window.addEventListener('keyup', (e) => {
+        if(e.key == 'Control') automata.control = false;
+        else if(e.key == 'Delete') automata.remove();
+    });
 	window.addEventListener('resize', _ => { reshape(); automata.draw(); });
 	window.addEventListener('mousedown', e => {
 		if(mouse_in_canvas) automata.create_node_or_link(e);

@@ -1,6 +1,6 @@
 import { TransicionGrafica, NodoGrafico, circuloTresPuntos, AutomataGrafico, Punto } from "./elementos_graficos.js";
 
-abstract class NEW_NFA {
+export abstract class NEW_NFA {
 
     start: NodoGrafico;
     end: NodoGrafico;
@@ -26,8 +26,9 @@ abstract class NEW_NFA {
     }
 
     dump_into(automata: AutomataGrafico): void {
-        automata.nodos.push(...this.nodes);
-        automata.transiciones.push(...this.transitions);
+        //automata.nodos.push(...this.nodes);
+        //automata.transiciones.push(...this.transitions);
+        automata.nfa = this;
     }
 
     highest(): NodoGrafico {
@@ -53,6 +54,11 @@ abstract class NEW_NFA {
             node.centro.x += dx;
             node.centro.y += dy;
         });
+    }
+
+    remove_transition(t: TransicionGrafica) {
+        let idx = this.transitions.findIndex(it => it == t);
+        this.transitions.splice(idx, 1);
     }
 
     //Removes the given state, and returns the transition it was involved
