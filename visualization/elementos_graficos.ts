@@ -1,5 +1,5 @@
 import { NodoLogico, AutomataLogico } from "./elementos_logicos.js";
-import { Concatenation, NEW_NFA } from "./new_nfa.js";
+import { Concatenation, Empty, NEW_NFA } from "./new_nfa.js";
 
 export class Punto {
     x: number;
@@ -79,9 +79,66 @@ export class TransicionGrafica {
         return t;
     }
 
+    self_transition(ctx: CanvasRenderingContext2D) {
+        let pos = this.nodoI.pos();
+        //we simulate that we are modifiying above the circle
+        //and then we go back to this.modificando = false;
+        if(this.aux == 0) {
+            this.aux = 0.1;
+            this.puntero = new Punto(pos.x, pos.y - 200);
+            this.modificando = true;
+            this.self_transition(ctx);
+            this.modificando = false;
+            return;
+        }
+        //calculate the other two points from this.puntero
+        //crear circunferencia a partir del centro(fijado en el axis) y el radio
+        //para el axis coger el angulo con el puntero y extender la longitud, ya que el diametro es (puntero-centro)
+        //if(this.modificando) {
+            let center = new Punto((pos.x + this.puntero.x) / 2, (pos.y + this.puntero.y) / 2);
+            let radius = center.dist(pos);
+            this.radio = radius;
+            this.centro = center;
+            this.aux = 2 * radius - 30;
+            //console.log('slope angle: ', ang);
+            //console.log('drawing self transition...');
+            //console.log('radius: ', radius);
+        //}
+        let offset = - 2 * Math.asin((<NodoGrafico>this.nodoI).radio / (2 * this.radio));
+        let ang = Math.atan2(pos.y - this.puntero.y, this.puntero.x - pos.x);
+        ctx.beginPath();
+        this.anguloD = -Math.PI / 2 - offset - (Math.PI / 2 - ang);
+        this.anguloI = -Math.PI / 2 + offset - (Math.PI / 2 - ang);
+        ctx.arc(center.x, center.y, this.radio, -this.anguloI, -this.anguloD);
+        ctx.stroke();
+
+        let anguloDcha = this.anguloD;
+        //////////DIBUJAR FLECHA
+        let xF = this.centro.x + (6 + this.radio) * Math.cos(anguloDcha - offset / 4);
+        let yF = this.centro.y - (6 + this.radio) * Math.sin(anguloDcha - offset / 4);
+        let xF2 = this.centro.x + (- 6 + this.radio) * Math.cos(anguloDcha - offset / 4);
+        let yF2 = this.centro.y - (- 6 + this.radio) * Math.sin(anguloDcha - offset / 4);
+
+        let xI = this.centro.x + this.radio * Math.cos(anguloDcha);
+        let yI = this.centro.y - this.radio * Math.sin(anguloDcha);
+
+        ctx.beginPath();
+        ctx.moveTo(xF, yF);
+        ctx.lineTo(xI, yI);
+        ctx.lineTo(xF2, yF2);
+        ctx.fill();
+        //////////DIBUJAR FLECHA
+        console.log(this);
+    }
+    
     draw(ctx: CanvasRenderingContext2D) {
         let posI = this.nodoI.pos();
         let posF = this.nodoF.pos();
+
+        if(this.nodoI == this.nodoF && this.nodoI instanceof NodoGrafico) {
+            this.self_transition(ctx);
+            return;
+        }
 
         if(this.aux == 0 ) {
             if(!this.modificando) {
@@ -229,6 +286,9 @@ export class TransicionGrafica {
             let final = this.anguloD;
             let inicio = this.anguloI;
             let anguloPuntero = Math.atan2(this.centro.y - p.y ,p.x - this.centro.x);
+            console.log('inicio:', inicio);
+            console.log('final:', final);
+            console.log('puntero: ', anguloPuntero);
 
             let condicion = anguloPuntero >= final && anguloPuntero <= inicio;
             if(inicio > 0 && final > 0 && inicio <= final) {
@@ -257,8 +317,8 @@ export class AutomataGrafico {
     shaping_transition: null | TransicionGrafica;
     creating_transition: null | TransicionGrafica;
     elemento_seleccionado: any;//cambiar este tipo a cuando cree una interfaz "ElementoGrafico".
-        visibilidad: Boolean;//estado de la visibilidad del autómata.
-        control: Boolean;
+    visibilidad: Boolean;//estado de la visibilidad del autómata.
+    control: Boolean;
 
     remove() {
         if(this.elemento_seleccionado != undefined) {
@@ -277,15 +337,14 @@ export class AutomataGrafico {
     constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
         this.canvas = canvas;
         this.ctx = ctx;
-        //this.nfa.nodes = new Array();
-        //this.nfa.transitions = new Array();
+        this.nfa = new Empty();
         this.control = false;
     }
 
     clear() {
         //this.nfa.nodes = new Array();
         //this.nfa.transitions = new Array();
-        this.nfa = new Concatenation(new NodoGrafico(0, new Punto(0, 0)));
+        this.nfa = new Empty();
         this.draggin = null;
         this.shaping_transition = null;
         this.creating_transition = null;
@@ -375,6 +434,7 @@ export class AutomataGrafico {
         for (let idx = 0; idx < this.nfa.transitions.length; idx++) {
             const element = this.nfa.transitions[idx];
             let distancia = element.dist(p);
+            console.log('distancia a link: ', distancia);
             if(distancia <= epsilon && distancia < minimo) {
                 closest = element;
             }
@@ -452,6 +512,10 @@ export class AutomataGrafico {
         if(t != null) {
             let circle = this.closest_circle(p);
             if(circle != null) {
+                if(circle == t.nodoI) {
+                    console.log('self transition');
+                    console.log(this.nfa.transitions.length);
+                }
                 t.nodoF = circle;
                 t.modificando = false; //TODO
                 this.nfa.transitions.push(t);

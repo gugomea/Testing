@@ -132,6 +132,15 @@ export class Concatenation extends NEW_NFA {
     }
 }
 
+export class Empty extends NEW_NFA {
+    constructor() {
+        super();
+    }
+    push(...next: NEW_NFA[]): NEW_NFA {
+        throw "empty remains empty";
+    }
+}
+
 export class Literal extends NEW_NFA {
     constructor(start: Punto, letter: string) {
         super();
@@ -298,9 +307,9 @@ export class NFA_BUILDER {
 
             return this.calculate_bounding(automata, exp, p);
 
-        } else if((exp = expression.empty) != undefined) {
+        } else if(expression === "empty") {
 
-            return new Concatenation(new NodoGrafico(0, p));
+            return new Empty();
 
         } else if((exp = expression.any) != undefined || (exp = expression.anyBut) != undefined) {
             let literals = (<Array<any>>exp).map(x => {
