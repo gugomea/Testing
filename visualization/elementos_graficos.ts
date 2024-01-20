@@ -79,66 +79,15 @@ export class TransicionGrafica {
         return t;
     }
 
-    self_transition(ctx: CanvasRenderingContext2D) {
-        let pos = this.nodoI.pos();
-        //we simulate that we are modifiying above the circle
-        //and then we go back to this.modificando = false;
-        if(this.aux == 0) {
-            this.aux = 0.1;
-            this.puntero = new Punto(pos.x, pos.y - 200);
-            this.modificando = true;
-            this.self_transition(ctx);
-            this.modificando = false;
-            return;
-        }
-        //calculate the other two points from this.puntero
-        //crear circunferencia a partir del centro(fijado en el axis) y el radio
-        //para el axis coger el angulo con el puntero y extender la longitud, ya que el diametro es (puntero-centro)
-        //if(this.modificando) {
-            let center = new Punto((pos.x + this.puntero.x) / 2, (pos.y + this.puntero.y) / 2);
-            let radius = center.dist(pos);
-            this.radio = radius;
-            this.centro = center;
-            this.aux = 2 * radius - 30;
-            //console.log('slope angle: ', ang);
-            //console.log('drawing self transition...');
-            //console.log('radius: ', radius);
-        //}
-        let offset = - 2 * Math.asin((<NodoGrafico>this.nodoI).radio / (2 * this.radio));
-        let ang = Math.atan2(pos.y - this.puntero.y, this.puntero.x - pos.x);
-        ctx.beginPath();
-        this.anguloD = -Math.PI / 2 - offset - (Math.PI / 2 - ang);
-        this.anguloI = -Math.PI / 2 + offset - (Math.PI / 2 - ang);
-        ctx.arc(center.x, center.y, this.radio, -this.anguloI, -this.anguloD);
-        ctx.stroke();
-
-        let anguloDcha = this.anguloD;
-        //////////DIBUJAR FLECHA
-        let xF = this.centro.x + (6 + this.radio) * Math.cos(anguloDcha - offset / 4);
-        let yF = this.centro.y - (6 + this.radio) * Math.sin(anguloDcha - offset / 4);
-        let xF2 = this.centro.x + (- 6 + this.radio) * Math.cos(anguloDcha - offset / 4);
-        let yF2 = this.centro.y - (- 6 + this.radio) * Math.sin(anguloDcha - offset / 4);
-
-        let xI = this.centro.x + this.radio * Math.cos(anguloDcha);
-        let yI = this.centro.y - this.radio * Math.sin(anguloDcha);
-
-        ctx.beginPath();
-        ctx.moveTo(xF, yF);
-        ctx.lineTo(xI, yI);
-        ctx.lineTo(xF2, yF2);
-        ctx.fill();
-        //////////DIBUJAR FLECHA
-        console.log(this);
-    }
     
     draw(ctx: CanvasRenderingContext2D) {
         let posI = this.nodoI.pos();
         let posF = this.nodoF.pos();
 
-        if(this.nodoI == this.nodoF && this.nodoI instanceof NodoGrafico) {
-            this.self_transition(ctx);
-            return;
-        }
+        //if(this.nodoI == this.nodoF && this.nodoI instanceof NodoGrafico) {
+        //    this.self_transition(ctx);
+        //    return;
+        //}
 
         if(this.aux == 0 ) {
             if(!this.modificando) {
@@ -305,6 +254,74 @@ export class TransicionGrafica {
             let dist = this.centro.dist(p);
             return Math.abs(dist - this.radio);
         }
+    }
+}
+
+class SelfTransition extends TransicionGrafica {
+
+    dx: number;
+    dy: number;
+
+    constructor(nodoI: NodoGrafico | Punto, nodoF: NodoGrafico | Punto, letter?: string) {
+        super(nodoI, nodoF, letter);
+    }
+
+    draw(ctx: CanvasRenderingContext2D) {
+        let pos = this.nodoI.pos();
+        //we simulate that we are modifiying above the circle
+        //and then we go back to this.modificando = false;
+        if(this.aux == 0) {
+            this.aux = 0.1;
+            this.puntero = new Punto(pos.x, pos.y - 200);
+            this.modificando = true;
+            this.draw(ctx);
+            this.modificando = false;
+            return;
+        }
+        //calculate the other two points from this.puntero
+        //crear circunferencia a partir del centro(fijado en el axis) y el radio
+        //para el axis coger el angulo con el puntero y extender la longitud, ya que el diametro es (puntero-centro)
+        if(this.modificando) {
+            let center = new Punto((pos.x + this.puntero.x) / 2, (pos.y + this.puntero.y) / 2);
+            let radius = center.dist(pos);
+            this.radio = radius;
+            this.centro = center;
+            this.aux = 2 * radius - 30;
+            this.dx = center.x - pos.x;
+            this.dy = center.y - pos.y;
+            //console.log('slope angle: ', ang);
+            //console.log('drawing self transition...');
+            //console.log('radius: ', radius);
+        }
+        let center = new Punto(pos.x + this.dx, pos.y + this.dy);
+        let puntero = new Punto(pos.x + this.dx * 2, pos.y + this.dy * 2);
+        this.puntero = puntero;
+        this.centro = center;
+        let offset = - 2 * Math.asin((<NodoGrafico>this.nodoI).radio / (2 * this.radio));
+        let ang = Math.atan2(pos.y - this.puntero.y, this.puntero.x - pos.x);
+        ctx.beginPath();
+        this.anguloD = -Math.PI / 2 - offset - (Math.PI / 2 - ang);
+        this.anguloI = -Math.PI / 2 + offset - (Math.PI / 2 - ang);
+        ctx.arc(center.x, center.y, this.radio, -this.anguloI, -this.anguloD);
+        ctx.stroke();
+
+        let anguloDcha = this.anguloD;
+        //////////DIBUJAR FLECHA
+        let xF = center.x + (6 + this.radio) * Math.cos(anguloDcha - offset / 4);
+        let yF = center.y - (6 + this.radio) * Math.sin(anguloDcha - offset / 4);
+        let xF2 = center.x + (- 6 + this.radio) * Math.cos(anguloDcha - offset / 4);
+        let yF2 = center.y - (- 6 + this.radio) * Math.sin(anguloDcha - offset / 4);
+
+        let xI = center.x + this.radio * Math.cos(anguloDcha);
+        let yI = center.y - this.radio * Math.sin(anguloDcha);
+
+        ctx.beginPath();
+        ctx.moveTo(xF, yF);
+        ctx.lineTo(xI, yI);
+        ctx.lineTo(xF2, yF2);
+        ctx.fill();
+        //////////DIBUJAR FLECHA
+        console.log(this);
     }
 }
 
@@ -515,9 +532,11 @@ export class AutomataGrafico {
                 if(circle == t.nodoI) {
                     console.log('self transition');
                     console.log(this.nfa.transitions.length);
+                    t = new SelfTransition(circle, circle);
+                }  else {
+                    t.nodoF = circle;
+                    t.modificando = false; //TODO
                 }
-                t.nodoF = circle;
-                t.modificando = false; //TODO
                 this.nfa.transitions.push(t);
             }
         }
