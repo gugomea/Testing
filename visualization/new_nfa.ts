@@ -312,12 +312,11 @@ export class NFA_BUILDER {
             return new Empty();
 
         } else if((exp = expression.any) != undefined || (exp = expression.anyBut) != undefined) {
-            let literals = (<Array<any>>exp).map(x => {
+            let text = (<Array<any>>exp).map(x => {
                 if (x.atom != undefined) return x.atom;
-                else return `[${x.range.start}-${x.range.end}]`;
-            });
-            let text = literals.join(',');
-            text = (expression.any != undefined) ? text: '~(' + text + ')';
+                else return `${x.range.start}-${x.range.end}`;
+            }).join('');
+            text = (expression.any != undefined) ? `[${text}]`: `[^${text}]`;
             automata.ctx.font = "22px serif";
             let long = automata.ctx.measureText(text).width;
             let literal = new Literal(p, text);

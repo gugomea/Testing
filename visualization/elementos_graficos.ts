@@ -1,5 +1,6 @@
 import { NodoLogico, AutomataLogico } from "./elementos_logicos.js";
 import { Concatenation, Empty, NEW_NFA } from "./new_nfa.js";
+import { initSync, build_automata, automata_to_regex } from "../pkg/automata.js";
 
 export class Punto {
     x: number;
@@ -321,7 +322,45 @@ class SelfTransition extends TransicionGrafica {
         ctx.lineTo(xF2, yF2);
         ctx.fill();
         //////////DIBUJAR FLECHA
-        console.log(this);
+
+
+        /////////DIBUJAR TEXTO
+        let medioGiratorio = puntero;
+        let angulo = Math.atan2(pos.y - medioGiratorio.y, pos.x - medioGiratorio.x) - Math.PI / 2;
+        console.log('angulo: ', angulo);
+
+        let anguloGiratorio = Math.atan2(medioGiratorio.y, medioGiratorio.x);
+        let offsetY_text = -6;
+
+        ////angulo texto rotar
+        if(angulo + Math.PI / 2 < 0) {
+            angulo += Math.PI;
+            offsetY_text = 22;
+        }
+        ////angulo texto rotar
+
+        let radioGiratorio = (new Punto(0, 0)).dist(medioGiratorio);
+        let nuevoX = Math.cos(angulo - anguloGiratorio) * radioGiratorio;
+        let nuevoY = - Math.sin(angulo - anguloGiratorio) * radioGiratorio;
+
+
+        //console.log('angulo: ', angulo);
+        ctx.rotate(angulo);
+        ctx.font = "22px serif";
+        let longitud = ctx.measureText(this.texto).width;
+
+        nuevoX = nuevoX - longitud / 2;
+        nuevoY += offsetY_text;
+
+        ctx.fillText(this.texto, nuevoX, nuevoY);
+
+        if(this.visible) ctx.fillText('|', nuevoX + longitud, nuevoY);
+
+        ctx.rotate(-angulo);
+        /////////DIBUJAR TEXTO
+
+
+        //console.log(this);
     }
 }
 
@@ -348,7 +387,26 @@ export class AutomataGrafico {
             }
             this.elemento_seleccionado = null;
             this.draw();
+            console.log(this.nfa);
         }
+        let nfa = this.nfa;
+        let IR_NFA = new Map<any, Array<string>>;
+
+        for(let i = 0; i < nfa.nodes.length; i++) nfa.nodes[i].numero = i;
+
+        for(let t of nfa.transitions) {
+            let I = (t.nodoI as NodoGrafico).numero;
+            let F = (t.nodoF as NodoGrafico).numero;
+            let key = `(${I}, ${F})`;
+            if(IR_NFA.get(key) == undefined) IR_NFA.set(key, []);
+            IR_NFA.get(key)!.push(t.texto);
+        }
+        IR_NFA = new Map(
+            Array.from(IR_NFA, ([key, value]) => [[parseInt(key[1]), parseInt(key[4])], value])
+        );
+        console.log('NFA sent to Rust: ', IR_NFA);
+
+        console.log('from rust: ', automata_to_regex(IR_NFA));
     }
 
     constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {

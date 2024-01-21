@@ -1,14 +1,14 @@
-use std::{cell::RefCell, collections::{HashMap, HashSet}};
+use std::{cell::RefCell, collections::{HashMap, HashSet}, hash::Hash, ops::Deref};
 use serde::{Serialize, Deserialize};
-use crate::Frontend::tokens::Expression;
-use super::nfa::NFA;
+use crate::Frontend::{tokens::Expression, parser::parse, error::ParsingError};
+use super::{nfa::NFA, intermediate_automata::IRAutoamta};
 
 #[test]
 fn GNFA_fromNFA() {
         use crate::Frontend::parser::parse;
         use crate::Backend::build::build;
 
-        let input = "a*b*";
+        let input = "a|b";
         println!("input regex: {}", input);
         let regex_ast = parse(input).unwrap();
         let nfa = build(regex_ast);
@@ -31,15 +31,41 @@ fn GNFA_fromNFA() {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GNFA {
-    n_states: usize,
+    pub n_states: usize,
     current: usize,
-    flow: RefCell<HashMap<(usize, usize), Expression>>,
-    ripped: RefCell<HashSet<usize>>,
+    pub flow: RefCell<HashMap<(usize, usize), Expression>>,
+    pub ripped: RefCell<HashSet<usize>>,
+}
+
+impl TryFrom<IRAutoamta> for GNFA {
+    type Error = ParsingError;
+    fn try_from(autoamta: IRAutoamta) -> Result<Self, Self::Error> {
+        let mut flow = HashMap::new();
+        let mut size = HashSet::new();
+        for(k, expressions) in  autoamta.transition_map {
+            let mut union_vec = vec![];
+            for exp in expressions {
+                match exp.deref() {
+                    "ε" => union_vec.push(Expression::empty),
+                    e => union_vec.push(parse(e)?),
+                }
+            }
+            flow.insert(k, Expression::union(union_vec));
+            size.insert(k.0);
+            size.insert(k.1);
+        }
+        return Ok(Self {
+            n_states: size.len(),
+            current: 0,
+            flow: RefCell::new(flow),
+            ripped: RefCell::new(HashSet::new()),
+        })
+    }
 }
 
 impl GNFA {
 
-    fn from_nfa(nfa: &NFA) -> Self {
+    pub fn from_nfa(nfa: &NFA) -> Self {
         let n_states = nfa.n_states;
 
         let mut flow: HashMap<(usize, usize), Expression> = HashMap::new();
@@ -70,7 +96,7 @@ impl GNFA {
         }
     }
 
-    fn rip_state(&self, state: usize) {
+    pub fn rip_state(&self, state: usize) {
         let mut ripped = self.ripped.borrow_mut();
         assert!(!ripped.contains(&state), "This state has been ripped, the order of the sates doesn't change");
         
