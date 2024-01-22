@@ -151,7 +151,8 @@ export class Literal extends NEW_NFA {
         this.nodes.push(s, e);
         this.start = s;
         this.end = e;
-        this.transitions.push(TransicionGrafica.new(s, e, letter));
+        //this.transitions.push(TransicionGrafica.new(s, e, letter));
+        this.transitions.push(new TransicionGrafica(s, e, letter));
     }
 
     push(...next: NEW_NFA[]): NEW_NFA {
@@ -179,8 +180,9 @@ export class Union extends NEW_NFA {
         let unitary_heigtht = next.reduce((acc, a) => acc + a.height() / 100, 0);
         let total_height = ((unitary_heigtht - 1) / 2) * 100 + union.start.pos().y;
         next.forEach(nfa => {
-            union.transitions.push(TransicionGrafica.new(union.start, nfa.start, "ε"));
-            union.transitions.push(TransicionGrafica.new(nfa.end, union.end, "ε"));
+            console.log('desde ', nfa.end, ' hacia: ', union.end);
+            union.transitions.push(new TransicionGrafica(union.start, nfa.start, "ε"));
+            union.transitions.push(new TransicionGrafica(nfa.end, union.end, "ε"));
             union.nodes.push(...nfa.nodes);
             union.transitions.push(...nfa.transitions);
         });
@@ -232,19 +234,14 @@ export class NFA_BUILDER {
                     }
                 }
             }
-            //let transition = TransicionGrafica.new(from, to, "ε");
-            transition.puntero = m_h == 0 ? new Punto((from.pos().x + to.pos().x) / 2, from.pos().y + (30 + 15) * (positive ? 1: -1)) :point;//radius + 15
-            transition.modificando = true;
-            transition.reversed = true;
-            //automata.transiciones.push(transition);
+            transition.set_pointer( m_h == 0 ? new Punto((from.pos().x + to.pos().x) / 2, from.pos().y + (30 + 15) ) :point);//radius + 15
             automata.draw();
-            transition.modificando = false;
-
         }
     }
 
     draw_automata(automata: AutomataGrafico, expression: any, p: Punto) {
         let nfa = this.calculate_bounding(automata, expression, p);
+        nfa.nodes[nfa.nodes.length - 1].final = true;
         nfa.dump_into(automata);
         this.draw_tangents(automata);
     }
@@ -279,7 +276,7 @@ export class NFA_BUILDER {
             //using result.start, and not left.start, becasue 
             //when concatenating, left.start is ripped.
             let [left, result] = add_empty(exp);
-            let t = TransicionGrafica.new(left.updated_end(), result.updated_start(), "ε");
+            let t = new TransicionGrafica(left.updated_end(), result.updated_start(), "ε");
             result.transitions.push(t);
             this.tangents.push([t, left]);
             return result;
@@ -287,10 +284,10 @@ export class NFA_BUILDER {
         } else if((exp = expression.zero_or_more) != undefined) {
 
             let [left, result] = add_empty(exp);
-            let t = TransicionGrafica.new(result.updated_start(), left.updated_end(), "ε");
+            let t = new TransicionGrafica(result.updated_start(), left.updated_end(), "ε");
             result.transitions.push(t);
             this.tangents.push([t, left]);
-            let tt = TransicionGrafica.new(left.updated_end(), result.updated_start(), "ε");
+            let tt = new TransicionGrafica(left.updated_end(), result.updated_start(), "ε");
             result.transitions.push(tt);
             this.tangents.push([tt, left]);
             return result;
@@ -298,7 +295,7 @@ export class NFA_BUILDER {
         } else if((exp = expression.optional) != undefined) {
 
             let [left, result] = add_empty(exp);
-            let t = TransicionGrafica.new(result.updated_start(), left.updated_end(), "ε");
+            let t = new TransicionGrafica(result.updated_start(), left.updated_end(), "ε");
             result.transitions.push(t);
             this.tangents.push([t, left]);
             return result;

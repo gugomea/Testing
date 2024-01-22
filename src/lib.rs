@@ -40,7 +40,7 @@ pub fn automata_to_regex(automata: JsValue) -> Result<JsValue, JsValue> {
 
         //let result = format!("{:#?}", gnfa);
         let result = match gnfa.flow.borrow().get(&(0, n - 1)) {
-            Some(exp) => format!("{}", exp),
+            Some(exp) => format!("{:?} => {}", (0, n-1), exp),
             None => format!("Invalid Automata"),
         };
         return Ok(result.into());

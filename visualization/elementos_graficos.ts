@@ -21,12 +21,14 @@ export class NodoGrafico {
     centro: Punto;
     radio: number;
     id: number;
+    final: boolean;
 
     constructor(numero: number, centro: Punto) {
         this.numero = numero;
         this.centro = centro;
         this.radio = 30;
         this.id = 0;
+        this.final = false;
     }
 
     pos(): Punto { return this.centro; }
@@ -46,321 +48,207 @@ export class NodoGrafico {
     }
 }
 
+function slope_angle(I: Punto, F: Punto): number {
+    return Math.atan2(I.y - F.y, F.x - I.x);
+}
+
 export class TransicionGrafica {
-    nombre: string;
+
     nodoI: NodoGrafico | Punto;
     nodoF: NodoGrafico | Punto;
-    puntero: Punto
-    centro: Punto;
-    radio: number;
-    aux: number;
-    modificando: Boolean;
-    reversed: Boolean;
-    anguloI: number;
-    anguloD: number;
+
+    aux: number | undefined;
+    upper_arc: boolean;
+    center: Punto;
     visible: Boolean;
     texto: string;
 
     constructor(nodoI: NodoGrafico | Punto, nodoF: NodoGrafico | Punto, letter?: string) {
         this.nodoI = nodoI;
         this.nodoF = nodoF;
-        this.aux = 0;
-        this.puntero = new Punto(0, 0);
-        this.modificando = true;
-        this.reversed = false;
+        this.aux = undefined;
         this.visible = false;
         this.texto = (letter == undefined) ? "": letter!;
+        this.upper_arc = true;
     }
 
-    static new(nodoI: NodoGrafico, nodoF: NodoGrafico, letter?: string) : TransicionGrafica {
-        let t = new TransicionGrafica(nodoI, nodoF);
-        t.aux = 0.1;
-        t.modificando = false;
-        t.texto = (letter == undefined) ? "": letter!;
-        return t;
+    upper(origin: Punto, target: Punto) {
+        let I = this.nodoI.pos(), F = this.nodoF.pos();
+        let center_angle = slope_angle(origin, target);
+        let t = I.y > F.y ? I: F;
+        let angle_transition = slope_angle(origin, t);//[0, -PI]
+        if(angle_transition == Math.PI) angle_transition *= -1;
+        let condition = (center_angle >= angle_transition && center_angle <= 0) || (center_angle >= 0 && center_angle <= angle_transition + Math.PI);
+        if(t == F) return condition;
+        else return !condition;
     }
 
-    
+    set_pointer(p: Punto) {
+        //this means its a initialization transition
+        if(this.nodoF instanceof NodoGrafico && this.nodoI instanceof Punto) {
+            this.aux = undefined;
+            this.nodoI = new Punto(p.x, p.y);
+            return;
+        }
+        let I = this.nodoI.pos(), F = this.nodoF.pos();
+        let medium = new Punto((I.x + F.x) / 2, (I.y + F.y) / 2);
+        let [center, radius] = circuloTresPuntos(I, F, p);
+        this.upper_arc = this.upper(medium, p);
+        this.aux = radius + center.dist(medium) * (this.upper(medium, center) ? 1: -1);
+    }
+
     draw(ctx: CanvasRenderingContext2D) {
         let posI = this.nodoI.pos();
         let posF = this.nodoF.pos();
+        let medium = new Punto((posI.x + posF.x) / 2, (posI.y + posF.y) / 2);
 
-        //if(this.nodoI == this.nodoF && this.nodoI instanceof NodoGrafico) {
-        //    this.self_transition(ctx);
-        //    return;
-        //}
-
-        if(this.aux == 0 ) {
-            if(!this.modificando) {
-                this.aux = 0.1;
-                this.draw(ctx);
-                return;
-            }
-            this.puntero = new Punto((posI.x + posF.x) / 2, (posI.y + posF.y) / 2);
+        //if we are a straight line, or we are close enough, then we print a line.
+        let angle = Math.atan2(posI.y - posF.y, posF.x - posI.x);
+        if(this.aux == undefined) {
             ctx.beginPath();
-            ctx.moveTo(posI.x, posI.y);
-            ctx.lineTo(posF.x, posF.y);
+            //only hide the ends of the transition when we are above a node, so there is no distandce between the link and the mouse.
+            if(this.nodoI instanceof NodoGrafico) ctx.moveTo(posI.x + 30 * Math.cos(angle), posI.y - 30 * Math.sin(angle));
+            else ctx.moveTo(posI.x, posI.y);
+
+            let [endx, endy] = (this.nodoF instanceof NodoGrafico) ? [posF.x - 30 * Math.cos(angle), posF.y + 30 * Math.sin(angle)]: [posF.x, posF.y];
+            let final = new Punto(endx, endy), slope = slope_angle(medium, final);
+            ctx.lineTo(endx, endy);
             ctx.stroke();
+            this.draw_arrow(final, new Punto(final.x - 5 * Math.cos(slope), final.y + 5 * Math.sin(slope)), ctx);
+            let reversed = (posI.x > posF.x) ? -1: 1;
+            this.draw_text(medium, -angle, slope_angle(medium, new Punto(medium.x + 10 * reversed *  Math.cos(angle + Math.PI / 2), medium.y - 10 * reversed * Math.sin(angle + Math.PI / 2))), ctx);
             return;
         }
+        let pointer = new Punto(medium.x + this.aux * Math.cos(angle + Math.PI / 2), medium.y - this.aux * Math.sin(angle + Math.PI / 2));
+        let [center, radius] = circuloTresPuntos(posI, posF, pointer);
+        let offset = 2 * Math.asin((<NodoGrafico>this.nodoF).radio / (2 * radius)) * (this.upper_arc ? -1: 1);
 
-        let medio = new Punto((posI.x + posF.x) / 2, (posI.y + posF.y) / 2);
-        if(!this.modificando) {
-            //creamos el punto a partir de la mitad(el punto es la perpendicular)
-            let angulo = Math.PI / 2 + Math.atan2(medio.y - posF.y, posF.x - medio.x);
-            medio.x = medio.x + this.aux * Math.cos(angulo);
-            medio.y = medio.y + (-1) * this.aux * Math.sin(angulo);
-            this.puntero = medio
-        } 
+        let left_angle = Math.atan2(center.y - posI.y, posI.x - center.x) + offset;
+        let right_angle = Math.atan2(center.y - posF.y, posF.x - center.x) - offset;
 
-        let [centro, radio] = circuloTresPuntos(posI, posF, this.puntero);
-        this.centro = centro;
-        this.radio = radio;
-
-        if(this.modificando) {
-            let Alpha_arriba = Math.PI / 2 + Math.atan2(medio.y - posF.y, posF.x - medio.x);
-            let Alpha_abajo = - Math.PI + Alpha_arriba;
-            let modulo = 10;
-            let arriba_punto = new Punto(medio.x + Math.cos(Alpha_arriba) * modulo, medio.y - Math.sin(Alpha_arriba) * modulo);
-            let abajo_punto = new Punto(medio.x + Math.cos(Alpha_abajo) * modulo, medio.y - Math.sin(Alpha_abajo) * modulo);
-            let dis_arriba = arriba_punto.dist(this.puntero);
-            let dis_abajo = abajo_punto.dist(this.puntero);
-
-            let encima = (dis_arriba < dis_abajo) ? true: false;
-            this.reversed = !encima;
-            dis_arriba = arriba_punto.dist(this.centro);
-            dis_abajo = abajo_punto.dist(this.centro);
-            encima = (dis_arriba <= dis_abajo) ? true: false;
-            let centro_esta_encima = encima;
-
-            let mult = centro_esta_encima ? -1: 1;
-            if(this.reversed) {
-                this.aux = this.radio + this.centro.dist(medio) * mult;
-                this.aux = this.aux * (-1);
-            } else {
-                this.aux = this.radio - (this.centro.dist(medio)) * mult;
-            }
+        let from = new Punto(center.x + radius * Math.cos(right_angle),  center.y - radius *Math.sin(right_angle));
+        let to = new Punto(center.x + radius * Math.cos(right_angle - offset / 4),  center.y - radius *Math.sin(right_angle - offset / 4));
+        this.draw_arrow(from, to, ctx);
+        if (!this.upper_arc) {
+            let aux = left_angle;
+            left_angle = right_angle;
+            right_angle = aux;
         }
-
-        let multe = this.reversed ? 1: -1;
-        let offset = 2 * Math.asin((<NodoGrafico>this.nodoI).radio / (2 * this.radio)) * multe;
-
-        let anguloIzda = Math.atan2(centro.y - posI.y ,posI.x - centro.x) + offset;
-        let anguloDcha = Math.atan2(centro.y - posF.y ,posF.x - centro.x) - offset;
-
-        //////////DIBUJAR FLECHA
-        let xF = this.centro.x + (6 + this.radio) * Math.cos(anguloDcha - offset / 4);
-        let yF = this.centro.y - (6 + this.radio) * Math.sin(anguloDcha - offset / 4);
-        let xF2 = this.centro.x + (- 6 + this.radio) * Math.cos(anguloDcha - offset / 4);
-        let yF2 = this.centro.y - (- 6 + this.radio) * Math.sin(anguloDcha - offset / 4);
-
-        let xI = this.centro.x + this.radio * Math.cos(anguloDcha);
-        let yI = this.centro.y - this.radio * Math.sin(anguloDcha);
-
         ctx.beginPath();
-        ctx.moveTo(xF, yF);
-        ctx.lineTo(xI, yI);
-        ctx.lineTo(xF2, yF2);
-        ctx.fill();
-        //////////DIBUJAR FLECHA
-
-        if(this.reversed) {
-            let aux = anguloIzda;
-            anguloIzda = anguloDcha;
-            anguloDcha = aux;
-        }
-
-
-        this.anguloI = anguloIzda;
-        if(anguloIzda > Math.PI) this.anguloI= 2*Math.PI - anguloIzda;
-        else if(anguloIzda < -Math.PI) this.anguloI= 2*Math.PI + anguloIzda;
-
-        this.anguloD = anguloDcha;
-        if(anguloDcha > Math.PI) this.anguloD= 2*Math.PI - anguloDcha;
-        else if(anguloDcha < -Math.PI) this.anguloD= 2*Math.PI + anguloDcha;
-
-        ctx.beginPath();
-        ctx.arc(centro.x, centro.y, radio, -anguloIzda, -anguloDcha);
+        ctx.arc(center.x, center.y, radius, -left_angle, -right_angle);
         ctx.stroke();
 
-        /////////DIBUJAR TEXTO
-        let medioGiratorio =  new Punto((posI.x + posF.x) / 2, (posI.y + posF.y) / 2);
-        let anguloaux = Math.PI / 2 + Math.atan2(medioGiratorio.y - posF.y, posF.x - medioGiratorio.x);
-        let angulo = Math.atan2(posF.y - medioGiratorio.y, posF.x - medioGiratorio.x);
-        medioGiratorio.x = medioGiratorio.x + this.aux * Math.cos(anguloaux);
-        medioGiratorio.y = medioGiratorio.y + (-1) * this.aux * Math.sin(anguloaux);
+        let angulo_nuevo = Math.PI + slope_angle(center, pointer);
+        let opposite = new Punto(center.x + Math.cos(angulo_nuevo) * radius, center.y - Math.sin(angulo_nuevo) * radius);
+        pointer = (this.upper_arc) ? pointer: opposite;
 
-        let anguloGiratorio = Math.atan2(medioGiratorio.y, medioGiratorio.x);
+        this.draw_text(pointer, -angle, slope_angle(center, pointer), ctx);
+    }
 
+    draw_arrow(from: Punto, to: Punto, ctx: CanvasRenderingContext2D) {
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        let ang = slope_angle(from, to);
+        ctx.lineTo(from.x + 10 * Math.cos(ang - 0.6), from.y - 10 * Math.sin(ang - 0.6));
+        ctx.lineTo(from.x + 10 * Math.cos(ang + 0.6), from.y - 10 * Math.sin(ang + 0.6));
+        ctx.fill();
+    }
+
+    draw_text(textPoint: Punto, slope_angle: number, perpendicular_angle: number, ctx: CanvasRenderingContext2D) {
+        let modulo = perpendicular_angle > 0 ? 10: 20;
         ////angulo texto rotar
-        if(angulo >= Math.PI / 2 && angulo <= Math.PI) {
-            angulo += Math.PI;
+        if(slope_angle >= Math.PI / 2 && slope_angle <= Math.PI) {
+            slope_angle += Math.PI;
         }
-        else if(angulo <= -Math.PI / 2 && angulo >= - Math.PI) {
-            angulo += Math.PI;
+        else if(slope_angle <= -Math.PI / 2 && slope_angle >= - Math.PI) {
+            slope_angle += Math.PI;
         }
-        ////angulo texto rotar
+        textPoint.x = textPoint.x + modulo * Math.cos(perpendicular_angle);
+        textPoint.y = textPoint.y - modulo * Math.sin(perpendicular_angle);
 
-        let radioGiratorio = (new Punto(0, 0)).dist(medioGiratorio);
-        let nuevoX = Math.cos(angulo - anguloGiratorio) * radioGiratorio;
-        let nuevoY = - Math.sin(angulo - anguloGiratorio) * radioGiratorio;
+        let anguloGiratorio = Math.atan2(textPoint.y, textPoint.x);
+        let radioGiratorio = (new Punto(0, 0)).dist(textPoint);
+        let nuevoX = Math.cos(slope_angle - anguloGiratorio) * radioGiratorio;
+        let nuevoY = - Math.sin(slope_angle - anguloGiratorio) * radioGiratorio;
 
-
-        ctx.rotate(angulo);
+        ctx.rotate(slope_angle);
         ctx.font = "22px serif";
-        //this.texto = "ε-Transición";
         let longitud = ctx.measureText(this.texto).width;
-
         nuevoX = nuevoX - longitud / 2;
-        if(this.reversed && posF.x >= posI.x || !this.reversed && posF.x <= posI.x) nuevoY = nuevoY + 22;
-        else nuevoY = nuevoY - 6;
-
         ctx.fillText(this.texto, nuevoX, nuevoY);
-
         if(this.visible) ctx.fillText('|', nuevoX + longitud, nuevoY);
-
-        ctx.rotate(-angulo);
-        /////////DIBUJAR TEXTO
+        ctx.rotate(-slope_angle);
     }
 
     dist(p: Punto) {
-        if(this.aux == 0) {
-            let posF = this.nodoF.pos();
-            let posI = this.nodoI.pos();
-            let angulo = Math.atan2(posI.y - posF.y, posF.x - posI.x);
-            let d1 = Math.sqrt(Math.cos(angulo)*Math.cos(angulo) + Math.sin(angulo)*Math.sin(angulo)) * posI.dist(posF);
-            let d2 = Math.sqrt(Math.cos(angulo)*Math.cos(angulo) + Math.sin(angulo)*Math.sin(angulo)) * posI.dist(p);
-            return Math.abs(d1 - d2);
-        } else {
-            ///SENTIDO HORARIO
-            let final = this.anguloD;
-            let inicio = this.anguloI;
-            let anguloPuntero = Math.atan2(this.centro.y - p.y ,p.x - this.centro.x);
-            console.log('inicio:', inicio);
-            console.log('final:', final);
-            console.log('puntero: ', anguloPuntero);
-
-            let condicion = anguloPuntero >= final && anguloPuntero <= inicio;
-            if(inicio > 0 && final > 0 && inicio <= final) {
-                condicion = anguloPuntero <= inicio || anguloPuntero >= final;
-            } else if(inicio < 0 && final < 0 && inicio <= final) {
-                condicion = anguloPuntero > 0 || anguloPuntero <= inicio || anguloPuntero >= final;
-            } else if(inicio < 0 && final > 0) {
-                condicion = (anguloPuntero <= inicio) || (anguloPuntero >= final);
-            } else if(inicio > 0 && final < 0) {
-                condicion = (anguloPuntero <= inicio && anguloPuntero >= 0) || (anguloPuntero >= final && anguloPuntero <= 0);
-            }
-
-            if(!condicion) return Infinity;
-            let dist = this.centro.dist(p);
-            return Math.abs(dist - this.radio);
+        let posI = this.nodoI.pos(), posF = this.nodoF.pos();
+        let medium = new Punto((posI.x + posF.x) / 2, (posI.y + posF.y) / 2);
+        let ang = Math.atan2(posI.y - posF.y, posF.x - posI.x) + Math.PI / 2;
+        if(this.aux == undefined) {
+            //using heron formula to caluclate area so I can get height of triangle.
+            let a = posI.dist(p), b = posF.dist(p), c = posI.dist(posF);
+            let s = (a + b + c) / 2;
+            let area = Math.sqrt(s * (s - a) * (s - b) * (s - c));
+            if(p.dist(medium) > medium.dist(posI)) return Infinity;
+            return 2 * area / c;
         }
+        let pointer = new Punto(medium.x + this.aux * Math.cos(ang), medium.y - this.aux * Math.sin(ang));
+        let [center, radius] = circuloTresPuntos(posI, posF, pointer);
+        let condition = this.upper_arc == this.upper(medium, p);
+
+        if(condition) return Math.abs(radius - center.dist(p));
+        return Infinity;
     }
 }
 
 class SelfTransition extends TransicionGrafica {
 
-    dx: number;
-    dy: number;
+    slope: number;
+    length: number;
 
-    constructor(nodoI: NodoGrafico | Punto, nodoF: NodoGrafico | Punto, letter?: string) {
+    constructor(nodoI: NodoGrafico, nodoF: NodoGrafico, letter?: string) {
         super(nodoI, nodoF, letter);
     }
 
+    set_pointer(p: Punto) {
+        console.log('setting pointer');
+        let I = this.nodoI.pos();
+        this.slope = slope_angle(I, p);
+        this.length = I.dist(p);
+    }
+
     draw(ctx: CanvasRenderingContext2D) {
-        let pos = this.nodoI.pos();
-        //we simulate that we are modifiying above the circle
-        //and then we go back to this.modificando = false;
-        if(this.aux == 0) {
-            this.aux = 0.1;
-            this.puntero = new Punto(pos.x, pos.y - 200);
-            this.modificando = true;
-            this.draw(ctx);
-            this.modificando = false;
-            return;
+        console.log('drawing self transition');
+        let I = this.nodoI.pos();
+        if(this.slope == undefined && this.length == undefined) {
+            console.log('está dentro');
+            this.slope = Math.PI / 2;
+            this.length = 50;
         }
-        //calculate the other two points from this.puntero
-        //crear circunferencia a partir del centro(fijado en el axis) y el radio
-        //para el axis coger el angulo con el puntero y extender la longitud, ya que el diametro es (puntero-centro)
-        if(this.modificando) {
-            let center = new Punto((pos.x + this.puntero.x) / 2, (pos.y + this.puntero.y) / 2);
-            let radius = center.dist(pos);
-            this.radio = radius;
-            this.centro = center;
-            this.aux = 2 * radius - 30;
-            this.dx = center.x - pos.x;
-            this.dy = center.y - pos.y;
-            //console.log('slope angle: ', ang);
-            //console.log('drawing self transition...');
-            //console.log('radius: ', radius);
-        }
-        let center = new Punto(pos.x + this.dx, pos.y + this.dy);
-        let puntero = new Punto(pos.x + this.dx * 2, pos.y + this.dy * 2);
-        this.puntero = puntero;
-        this.centro = center;
-        let offset = - 2 * Math.asin((<NodoGrafico>this.nodoI).radio / (2 * this.radio));
-        let ang = Math.atan2(pos.y - this.puntero.y, this.puntero.x - pos.x);
+        let pointer = new Punto(I.x + this.length * Math.cos(this.slope), I.y - this.length * Math.sin(this.slope));
+        let center = new Punto(I.x + 0.5 * this.length * Math.cos(this.slope), I.y - this.length * 0.5 * Math.sin(this.slope));
+        let radius = center.dist(pointer);
+        let offset = - 2 * Math.asin((<NodoGrafico>this.nodoI).radio / (2 * radius));
+        let ang = Math.atan2(I.y - pointer.y, pointer.x - I.x);
+        let right_angle = -Math.PI / 2 - offset - (Math.PI / 2 - ang);
+        let left_angle = -Math.PI / 2 + offset - (Math.PI / 2 - ang);
+
         ctx.beginPath();
-        this.anguloD = -Math.PI / 2 - offset - (Math.PI / 2 - ang);
-        this.anguloI = -Math.PI / 2 + offset - (Math.PI / 2 - ang);
-        ctx.arc(center.x, center.y, this.radio, -this.anguloI, -this.anguloD);
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, radius, -left_angle, -right_angle);
         ctx.stroke();
+        this.draw_text(pointer, - (slope_angle(pointer, I) - Math.PI / 2) % Math.PI , slope_angle(I, pointer), ctx);
+        let from = new Punto(center.x + radius * Math.cos(right_angle),  center.y - radius *Math.sin(right_angle));
+        let to = new Punto(center.x + radius * Math.cos(right_angle - offset / 4),  center.y - radius *Math.sin(right_angle - offset / 4));
+        this.draw_arrow(from, to, ctx);
+    }
 
-        let anguloDcha = this.anguloD;
-        //////////DIBUJAR FLECHA
-        let xF = center.x + (6 + this.radio) * Math.cos(anguloDcha - offset / 4);
-        let yF = center.y - (6 + this.radio) * Math.sin(anguloDcha - offset / 4);
-        let xF2 = center.x + (- 6 + this.radio) * Math.cos(anguloDcha - offset / 4);
-        let yF2 = center.y - (- 6 + this.radio) * Math.sin(anguloDcha - offset / 4);
-
-        let xI = center.x + this.radio * Math.cos(anguloDcha);
-        let yI = center.y - this.radio * Math.sin(anguloDcha);
-
-        ctx.beginPath();
-        ctx.moveTo(xF, yF);
-        ctx.lineTo(xI, yI);
-        ctx.lineTo(xF2, yF2);
-        ctx.fill();
-        //////////DIBUJAR FLECHA
-
-
-        /////////DIBUJAR TEXTO
-        let medioGiratorio = puntero;
-        let angulo = Math.atan2(pos.y - medioGiratorio.y, pos.x - medioGiratorio.x) - Math.PI / 2;
-        console.log('angulo: ', angulo);
-
-        let anguloGiratorio = Math.atan2(medioGiratorio.y, medioGiratorio.x);
-        let offsetY_text = -6;
-
-        ////angulo texto rotar
-        if(angulo + Math.PI / 2 < 0) {
-            angulo += Math.PI;
-            offsetY_text = 22;
-        }
-        ////angulo texto rotar
-
-        let radioGiratorio = (new Punto(0, 0)).dist(medioGiratorio);
-        let nuevoX = Math.cos(angulo - anguloGiratorio) * radioGiratorio;
-        let nuevoY = - Math.sin(angulo - anguloGiratorio) * radioGiratorio;
-
-
-        //console.log('angulo: ', angulo);
-        ctx.rotate(angulo);
-        ctx.font = "22px serif";
-        let longitud = ctx.measureText(this.texto).width;
-
-        nuevoX = nuevoX - longitud / 2;
-        nuevoY += offsetY_text;
-
-        ctx.fillText(this.texto, nuevoX, nuevoY);
-
-        if(this.visible) ctx.fillText('|', nuevoX + longitud, nuevoY);
-
-        ctx.rotate(-angulo);
-        /////////DIBUJAR TEXTO
-
-
-        //console.log(this);
+    dist(p: Punto) {
+        let I = this.nodoI.pos();
+        let pointer = new Punto(I.x + this.length * Math.cos(this.slope), I.y - this.length * Math.sin(this.slope));
+        let center = new Punto(I.x + 0.5 * this.length * Math.cos(this.slope), I.y - this.length * 0.5 * Math.sin(this.slope));
+        let distance = Math.abs(center.dist(pointer) - p.dist(center));
+        return distance;
     }
 }
 
@@ -390,23 +278,45 @@ export class AutomataGrafico {
             console.log(this.nfa);
         }
         let nfa = this.nfa;
-        let IR_NFA = new Map<any, Array<string>>;
+        let IR_NFA = new Map<string, Array<string>>;
 
-        for(let i = 0; i < nfa.nodes.length; i++) nfa.nodes[i].numero = i;
+        let n = nfa.nodes.length;
+        // we set the number to i + 1, becasue we will create the inital and end transitions manually since they are variable.
+        for(let i = 0; i < n; i++) {
+            nfa.nodes[i].numero = i + 1;
+            if(nfa.nodes[i].final) {
+                console.log('final => ', `${i+1}, ${n+1}`, ["ε"]);
+                IR_NFA.set(`(${i+1}, ${n+1})`, ["ε"]);
+            }
+        }
+
+        console.log('nodes: ', nfa.nodes);
 
         for(let t of nfa.transitions) {
-            let I = (t.nodoI as NodoGrafico).numero;
+            console.log('transicion: ', t);
+            let I: any;
+            //if the initial point is a Node, then its a normal transition
+            //otherwise it if its a `Punto`, that means its the representation of 
+            //the first state;
+            if(t.nodoI instanceof NodoGrafico) I = (t.nodoI as NodoGrafico).numero;
+            else I = 0;
             let F = (t.nodoF as NodoGrafico).numero;
             let key = `(${I}, ${F})`;
+            if(I == 0)t.texto = "ε";
             if(IR_NFA.get(key) == undefined) IR_NFA.set(key, []);
             IR_NFA.get(key)!.push(t.texto);
         }
-        IR_NFA = new Map(
-            Array.from(IR_NFA, ([key, value]) => [[parseInt(key[1]), parseInt(key[4])], value])
+        console.log('NFA: ', IR_NFA);
+        let new_IR_NFA = new Map(
+            Array.from(IR_NFA, ([key, value]) => {
+                const inp = key.replace(/[()]/g, '');
+                const [k1, k2] = inp.split(',').map(x => parseInt(x.trim()));
+                return [[k1, k2], value]
+            })
         );
-        console.log('NFA sent to Rust: ', IR_NFA);
+        console.log('NFA sent to Rust: ', new_IR_NFA);
 
-        console.log('from rust: ', automata_to_regex(IR_NFA));
+        console.log('from rust: ', automata_to_regex(new_IR_NFA));
     }
 
     constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
@@ -566,8 +476,8 @@ export class AutomataGrafico {
             this.creating_transition.nodoF = p;
             this.draw();
         } else if(this.shaping_transition != null) {
-            this.shaping_transition.modificando = true;
-            this.shaping_transition.puntero = p;
+            //this.shaping_transition.modificando = true;
+            this.shaping_transition.set_pointer(p);
             this.draw();
         }
 
@@ -584,8 +494,10 @@ export class AutomataGrafico {
 
         this.draggin = null;
         let t = this.creating_transition;
+        console.log('creaing transition: ', t);
         if(t != null) {
             let circle = this.closest_circle(p);
+            console.log('circle: ', circle);
             if(circle != null) {
                 if(circle == t.nodoI) {
                     console.log('self transition');
@@ -593,13 +505,13 @@ export class AutomataGrafico {
                     t = new SelfTransition(circle, circle);
                 }  else {
                     t.nodoF = circle;
-                    t.modificando = false; //TODO
                 }
                 this.nfa.transitions.push(t);
+                console.log(this.nfa.transitions);
             }
         }
+        console.log('transition: ', this.shaping_transition);
         this.creating_transition = null;
-        if(this.shaping_transition != null) this.shaping_transition.modificando = false;
         this.shaping_transition = null;
         this.draw();
     }
