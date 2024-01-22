@@ -39,6 +39,11 @@ export class NodoGrafico {
         ctx.beginPath();
         ctx.arc(this.centro.x, this.centro.y, this.radio, 0, 2 * Math.PI);
         ctx.stroke();
+        if(this.final) {
+            ctx.beginPath();
+            ctx.arc(this.centro.x, this.centro.y, 3 * this.radio / 4, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
     }
 
     insterseccion(angulo: number): Punto {
@@ -211,17 +216,14 @@ class SelfTransition extends TransicionGrafica {
     }
 
     set_pointer(p: Punto) {
-        console.log('setting pointer');
         let I = this.nodoI.pos();
         this.slope = slope_angle(I, p);
         this.length = I.dist(p);
     }
 
     draw(ctx: CanvasRenderingContext2D) {
-        console.log('drawing self transition');
         let I = this.nodoI.pos();
         if(this.slope == undefined && this.length == undefined) {
-            console.log('está dentro');
             this.slope = Math.PI / 2;
             this.length = 50;
         }
@@ -275,7 +277,6 @@ export class AutomataGrafico {
             }
             this.elemento_seleccionado = null;
             this.draw();
-            console.log(this.nfa);
         }
         let nfa = this.nfa;
         let IR_NFA = new Map<string, Array<string>>;
@@ -285,7 +286,6 @@ export class AutomataGrafico {
         for(let i = 0; i < n; i++) {
             nfa.nodes[i].numero = i + 1;
             if(nfa.nodes[i].final) {
-                console.log('final => ', `${i+1}, ${n+1}`, ["ε"]);
                 IR_NFA.set(`(${i+1}, ${n+1})`, ["ε"]);
             }
         }
@@ -293,7 +293,6 @@ export class AutomataGrafico {
         console.log('nodes: ', nfa.nodes);
 
         for(let t of nfa.transitions) {
-            console.log('transicion: ', t);
             let I: any;
             //if the initial point is a Node, then its a normal transition
             //otherwise it if its a `Punto`, that means its the representation of 
@@ -306,7 +305,6 @@ export class AutomataGrafico {
             if(IR_NFA.get(key) == undefined) IR_NFA.set(key, []);
             IR_NFA.get(key)!.push(t.texto);
         }
-        console.log('NFA: ', IR_NFA);
         let new_IR_NFA = new Map(
             Array.from(IR_NFA, ([key, value]) => {
                 const inp = key.replace(/[()]/g, '');
@@ -315,7 +313,6 @@ export class AutomataGrafico {
             })
         );
         console.log('NFA sent to Rust: ', new_IR_NFA);
-
         console.log('from rust: ', automata_to_regex(new_IR_NFA));
     }
 
@@ -365,7 +362,6 @@ export class AutomataGrafico {
             } else if(texto.length == 1) {
                 this.elemento_seleccionado.texto += texto;
             } else if(texto == 'Backspace') {
-                //console.log(texto);
                 let t = this.elemento_seleccionado.texto;
                 this.elemento_seleccionado.texto = t.slice(0, -1);
             } else if(texto == 'Enter') {
@@ -386,8 +382,6 @@ export class AutomataGrafico {
         if(this.creating_transition != null) this.creating_transition.draw(this.ctx);
 
         this.background();
-
-        //console.log('dibujando...');
     }
 
     closest_circle(p: Punto): NodoGrafico | null {
@@ -419,7 +413,6 @@ export class AutomataGrafico {
         for (let idx = 0; idx < this.nfa.transitions.length; idx++) {
             const element = this.nfa.transitions[idx];
             let distancia = element.dist(p);
-            console.log('distancia a link: ', distancia);
             if(distancia <= epsilon && distancia < minimo) {
                 closest = element;
             }
@@ -494,23 +487,17 @@ export class AutomataGrafico {
 
         this.draggin = null;
         let t = this.creating_transition;
-        console.log('creaing transition: ', t);
         if(t != null) {
             let circle = this.closest_circle(p);
-            console.log('circle: ', circle);
             if(circle != null) {
                 if(circle == t.nodoI) {
-                    console.log('self transition');
-                    console.log(this.nfa.transitions.length);
                     t = new SelfTransition(circle, circle);
                 }  else {
                     t.nodoF = circle;
                 }
                 this.nfa.transitions.push(t);
-                console.log(this.nfa.transitions);
             }
         }
-        console.log('transition: ', this.shaping_transition);
         this.creating_transition = null;
         this.shaping_transition = null;
         this.draw();

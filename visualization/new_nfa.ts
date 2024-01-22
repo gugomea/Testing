@@ -241,7 +241,7 @@ export class NFA_BUILDER {
 
     draw_automata(automata: AutomataGrafico, expression: any, p: Punto) {
         let nfa = this.calculate_bounding(automata, expression, p);
-        nfa.nodes[nfa.nodes.length - 1].final = true;
+        nfa.end.final = true;
         nfa.dump_into(automata);
         this.draw_tangents(automata);
     }
