@@ -8,7 +8,7 @@ fn GNFA_fromNFA() {
         use crate::Frontend::parser::parse;
         use crate::Backend::build::build;
 
-        let input = "a|b";
+        let input = "(a|b)*";
         println!("input regex: {}", input);
         let regex_ast = parse(input).unwrap();
         let nfa = build(regex_ast);
@@ -44,13 +44,19 @@ impl TryFrom<IRAutoamta> for GNFA {
         let mut size = HashSet::new();
         for(k, expressions) in  autoamta.transition_map {
             let mut union_vec = vec![];
+            let mut contains_empty = false;
             for exp in expressions {
                 match exp.deref() {
-                    "ε" => union_vec.push(Expression::empty),
+                    "ε" => contains_empty = true,
                     e => union_vec.push(parse(e)?),
                 }
             }
-            flow.insert(k, Expression::union(union_vec));
+            if contains_empty { union_vec.push(Expression::empty); }
+            if union_vec.len() > 1 {
+                flow.insert(k, Expression::union(union_vec));
+            } else if union_vec.len() == 1 {
+                flow.insert(k, union_vec.pop().unwrap());
+            }
             size.insert(k.0);
             size.insert(k.1);
         }
@@ -109,6 +115,7 @@ impl GNFA {
             .collect();
 
         let self_transition= Q.iter()
+            .filter(|(_, e)| e != &Expression::empty)
             .find(|((from, to), _)| *from == state && *to == state)
             .map(|(_, exp)| Expression::zero_or_more(Box::new(exp.clone())))
             .unwrap_or(Expression::empty);

@@ -1,4 +1,3 @@
-import { NodoLogico, AutomataLogico } from "./elementos_logicos.js";
 import { Concatenation, Empty, NEW_NFA } from "./new_nfa.js";
 import { initSync, build_automata, automata_to_regex } from "../pkg/automata.js";
 
@@ -17,11 +16,13 @@ export class Punto {
 
 export class NodoGrafico {
     numero: number;
-    nodo: NodoLogico;
     centro: Punto;
     radio: number;
     id: number;
     final: boolean;
+    visible: boolean;
+    name: string;
+    ctx: CanvasRenderingContext2D;
 
     constructor(numero: number, centro: Punto) {
         this.numero = numero;
@@ -29,6 +30,7 @@ export class NodoGrafico {
         this.radio = 30;
         this.id = 0;
         this.final = false;
+        this.name = "";
     }
 
     pos(): Punto { return this.centro; }
@@ -44,6 +46,9 @@ export class NodoGrafico {
             ctx.arc(this.centro.x, this.centro.y, 3 * this.radio / 4, 0, 2 * Math.PI);
             ctx.stroke();
         }
+        let p = new Punto(this.centro.x, this.centro.y + 15);
+        draw_text(p, 0, Math.PI / 2, this.name, this.visible, ctx);
+        this.ctx = ctx;
     }
 
     insterseccion(angulo: number): Punto {
@@ -51,11 +56,54 @@ export class NodoGrafico {
         let y = this.centro.y + this.centro.y * Math.sin(angulo);
         return new Punto(x, y);
     }
+
+    set_visible(v: boolean) {
+        this.visible = v;
+    }
+
+    push_text(t: string) {
+        if(this.ctx != undefined && this.ctx.measureText(this.name).width >= this.radio * 2 - this.ctx.measureText(" ").width) return;
+        this.name += t;
+    }
+
+    pop_text() {
+        this.name = this.name.slice(0, -1);
+    }
 }
 
 function slope_angle(I: Punto, F: Punto): number {
     return Math.atan2(I.y - F.y, F.x - I.x);
 }
+
+function draw_text(textPoint: Punto, slope_angle: number, perpendicular_angle: number, text: string, visible: boolean, ctx: CanvasRenderingContext2D) {
+    let modulo = perpendicular_angle > 0 ? 10: 20;
+    let sp_angle = slope_angle;
+    ////angulo texto rotar
+    if(sp_angle >= Math.PI / 2 && slope_angle <= Math.PI) {
+        sp_angle += Math.PI;
+    }
+    else if(sp_angle <= -Math.PI / 2 && slope_angle >= - Math.PI) {
+        sp_angle += Math.PI;
+    }
+    let tP = new Punto(textPoint.x, textPoint.y);
+    tP.x = tP.x + modulo * Math.cos(perpendicular_angle);
+    tP.y = tP.y - modulo * Math.sin(perpendicular_angle);
+
+    let anguloGiratorio = Math.atan2(tP.y, tP.x);
+    let radioGiratorio = (new Punto(0, 0)).dist(tP);
+    let nuevoX = Math.cos(sp_angle - anguloGiratorio) * radioGiratorio;
+    let nuevoY = - Math.sin(sp_angle - anguloGiratorio) * radioGiratorio;
+
+    ctx.rotate(sp_angle);
+    ctx.font = "22px serif";
+    let longitud = ctx.measureText(text).width;
+    nuevoX = nuevoX - longitud / 2;
+    ctx.fillText(text, nuevoX, nuevoY);
+    if(visible) ctx.fillText('|', nuevoX + longitud, nuevoY);
+    ctx.rotate(-sp_angle);
+}
+
+
 
 export class TransicionGrafica {
 
@@ -65,7 +113,7 @@ export class TransicionGrafica {
     aux: number | undefined;
     upper_arc: boolean;
     center: Punto;
-    visible: Boolean;
+    visible: boolean;
     texto: string;
 
     constructor(nodoI: NodoGrafico | Punto, nodoF: NodoGrafico | Punto, letter?: string) {
@@ -75,6 +123,18 @@ export class TransicionGrafica {
         this.visible = false;
         this.texto = (letter == undefined) ? "": letter!;
         this.upper_arc = true;
+    }
+
+    push_text(t: string) {
+        this.texto += t;
+    }
+
+    pop_text() {
+        this.texto = this.texto.slice(0, -1);
+    }
+
+    set_visible(v: boolean) {
+        this.visible = v;
     }
 
     upper(origin: Punto, target: Punto) {
@@ -121,12 +181,12 @@ export class TransicionGrafica {
             ctx.stroke();
             this.draw_arrow(final, new Punto(final.x - 5 * Math.cos(slope), final.y + 5 * Math.sin(slope)), ctx);
             let reversed = (posI.x > posF.x) ? -1: 1;
-            this.draw_text(medium, -angle, slope_angle(medium, new Punto(medium.x + 10 * reversed *  Math.cos(angle + Math.PI / 2), medium.y - 10 * reversed * Math.sin(angle + Math.PI / 2))), ctx);
+            draw_text(medium, -angle, slope_angle(medium, new Punto(medium.x + 10 * reversed *  Math.cos(angle + Math.PI / 2), medium.y - 10 * reversed * Math.sin(angle + Math.PI / 2))), this.texto, this.visible, ctx);
             return;
         }
         let pointer = new Punto(medium.x + this.aux * Math.cos(angle + Math.PI / 2), medium.y - this.aux * Math.sin(angle + Math.PI / 2));
         let [center, radius] = circuloTresPuntos(posI, posF, pointer);
-        let offset = 2 * Math.asin((<NodoGrafico>this.nodoF).radio / (2 * radius)) * (this.upper_arc ? -1: 1);
+        let offset = 2 * Math.asin((<NodoGrafico>this.nodoI).radio / (2 * radius)) * (this.upper_arc ? -1: 1);
 
         let left_angle = Math.atan2(center.y - posI.y, posI.x - center.x) + offset;
         let right_angle = Math.atan2(center.y - posF.y, posF.x - center.x) - offset;
@@ -147,7 +207,7 @@ export class TransicionGrafica {
         let opposite = new Punto(center.x + Math.cos(angulo_nuevo) * radius, center.y - Math.sin(angulo_nuevo) * radius);
         pointer = (this.upper_arc) ? pointer: opposite;
 
-        this.draw_text(pointer, -angle, slope_angle(center, pointer), ctx);
+        draw_text(pointer, -angle, slope_angle(center, pointer), this.texto, this.visible, ctx);
     }
 
     draw_arrow(from: Punto, to: Punto, ctx: CanvasRenderingContext2D) {
@@ -157,32 +217,6 @@ export class TransicionGrafica {
         ctx.lineTo(from.x + 10 * Math.cos(ang - 0.6), from.y - 10 * Math.sin(ang - 0.6));
         ctx.lineTo(from.x + 10 * Math.cos(ang + 0.6), from.y - 10 * Math.sin(ang + 0.6));
         ctx.fill();
-    }
-
-    draw_text(textPoint: Punto, slope_angle: number, perpendicular_angle: number, ctx: CanvasRenderingContext2D) {
-        let modulo = perpendicular_angle > 0 ? 10: 20;
-        ////angulo texto rotar
-        if(slope_angle >= Math.PI / 2 && slope_angle <= Math.PI) {
-            slope_angle += Math.PI;
-        }
-        else if(slope_angle <= -Math.PI / 2 && slope_angle >= - Math.PI) {
-            slope_angle += Math.PI;
-        }
-        textPoint.x = textPoint.x + modulo * Math.cos(perpendicular_angle);
-        textPoint.y = textPoint.y - modulo * Math.sin(perpendicular_angle);
-
-        let anguloGiratorio = Math.atan2(textPoint.y, textPoint.x);
-        let radioGiratorio = (new Punto(0, 0)).dist(textPoint);
-        let nuevoX = Math.cos(slope_angle - anguloGiratorio) * radioGiratorio;
-        let nuevoY = - Math.sin(slope_angle - anguloGiratorio) * radioGiratorio;
-
-        ctx.rotate(slope_angle);
-        ctx.font = "22px serif";
-        let longitud = ctx.measureText(this.texto).width;
-        nuevoX = nuevoX - longitud / 2;
-        ctx.fillText(this.texto, nuevoX, nuevoY);
-        if(this.visible) ctx.fillText('|', nuevoX + longitud, nuevoY);
-        ctx.rotate(-slope_angle);
     }
 
     dist(p: Punto) {
@@ -239,11 +273,15 @@ class SelfTransition extends TransicionGrafica {
         ctx.beginPath();
         ctx.arc(center.x, center.y, radius, -left_angle, -right_angle);
         ctx.stroke();
-        this.draw_text(pointer, - (slope_angle(pointer, I) - Math.PI / 2) % Math.PI , slope_angle(I, pointer), ctx);
+        draw_text(pointer, - (slope_angle(pointer, I) - Math.PI / 2) % Math.PI , slope_angle(I, pointer), this.texto, this.visible, ctx);
         let from = new Punto(center.x + radius * Math.cos(right_angle),  center.y - radius *Math.sin(right_angle));
         let to = new Punto(center.x + radius * Math.cos(right_angle - offset / 4),  center.y - radius *Math.sin(right_angle - offset / 4));
         this.draw_arrow(from, to, ctx);
     }
+
+    push_text(t: string): void { }
+    pop_text(): void { }
+    set_visible(v: boolean): void { }
 
     dist(p: Punto) {
         let I = this.nodoI.pos();
@@ -255,7 +293,6 @@ class SelfTransition extends TransicionGrafica {
 }
 
 export class AutomataGrafico {
-    logico: AutomataLogico;
     nfa: NEW_NFA;
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D;
@@ -268,6 +305,7 @@ export class AutomataGrafico {
 
     remove() {
         if(this.elemento_seleccionado != undefined) {
+            console.log(this.elemento_seleccionado);
             if(this.elemento_seleccionado instanceof TransicionGrafica) {
                 this.nfa.remove_transition(this.elemento_seleccionado);
             } else if(this.elemento_seleccionado instanceof NodoGrafico) {
@@ -277,43 +315,45 @@ export class AutomataGrafico {
             }
             this.elemento_seleccionado = null;
             this.draw();
-        }
-        let nfa = this.nfa;
-        let IR_NFA = new Map<string, Array<string>>;
 
-        let n = nfa.nodes.length;
-        // we set the number to i + 1, becasue we will create the inital and end transitions manually since they are variable.
-        for(let i = 0; i < n; i++) {
-            nfa.nodes[i].numero = i + 1;
-            if(nfa.nodes[i].final) {
-                IR_NFA.set(`(${i+1}, ${n+1})`, ["ε"]);
+            let nfa = this.nfa;
+            let IR_NFA = new Map<string, Array<string>>;
+
+            let n = nfa.nodes.length;
+            // we set the number to i + 1, becasue we will create the inital and end transitions manually since they are variable.
+            for(let i = 0; i < n; i++) {
+                nfa.nodes[i].numero = i + 1;
+                if(nfa.nodes[i].final) {
+                    IR_NFA.set(`(${i+1}, ${n+1})`, ["ε"]);
+                }
             }
-        }
 
-        console.log('nodes: ', nfa.nodes);
+            console.log('nodes: ', nfa.nodes);
 
-        for(let t of nfa.transitions) {
-            let I: any;
-            //if the initial point is a Node, then its a normal transition
-            //otherwise it if its a `Punto`, that means its the representation of 
-            //the first state;
-            if(t.nodoI instanceof NodoGrafico) I = (t.nodoI as NodoGrafico).numero;
-            else I = 0;
-            let F = (t.nodoF as NodoGrafico).numero;
-            let key = `(${I}, ${F})`;
-            if(I == 0)t.texto = "ε";
-            if(IR_NFA.get(key) == undefined) IR_NFA.set(key, []);
-            IR_NFA.get(key)!.push(t.texto);
+            for(let t of nfa.transitions) {
+                let I: any;
+                //if the initial point is a Node, then its a normal transition
+                //otherwise it if its a `Punto`, that means its the representation of 
+                //the first state;
+                if(t.nodoI instanceof NodoGrafico) I = (t.nodoI as NodoGrafico).numero;
+                else I = 0;
+                let F = (t.nodoF as NodoGrafico).numero;
+                let key = `(${I}, ${F})`;
+                if(I == 0)t.texto = "ε";
+                if(IR_NFA.get(key) == undefined) IR_NFA.set(key, []);
+                IR_NFA.get(key)!.push(t.texto);
+            }
+            let new_IR_NFA = new Map(
+                Array.from(IR_NFA, ([key, value]) => {
+                    const inp = key.replace(/[()]/g, '');
+                    const [k1, k2] = inp.split(',').map(x => parseInt(x.trim()));
+                    return [[k1, k2], value]
+                })
+            );
+            console.log('NFA sent to Rust: ', new_IR_NFA);
+            console.log('from rust: ', automata_to_regex(new_IR_NFA));
+
         }
-        let new_IR_NFA = new Map(
-            Array.from(IR_NFA, ([key, value]) => {
-                const inp = key.replace(/[()]/g, '');
-                const [k1, k2] = inp.split(',').map(x => parseInt(x.trim()));
-                return [[k1, k2], value]
-            })
-        );
-        console.log('NFA sent to Rust: ', new_IR_NFA);
-        console.log('from rust: ', automata_to_regex(new_IR_NFA));
     }
 
     constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
@@ -341,9 +381,9 @@ export class AutomataGrafico {
             this.ctx.strokeStyle = 'blue';
             this.ctx.fillStyle = 'blue';
             if(this.visibilidad) {
-                this.elemento_seleccionado.visible = true;
+                this.elemento_seleccionado.set_visible(true);
                 this.elemento_seleccionado.draw(this.ctx);
-                this.elemento_seleccionado.visible = false;
+                this.elemento_seleccionado.set_visible(false);
             } else {
                 this.elemento_seleccionado.draw(this.ctx);
             }
@@ -360,10 +400,9 @@ export class AutomataGrafico {
             if(this.control && texto == 'v'){
                 navigator.clipboard.readText().then(t => this.elemento_seleccionado.texto += t);
             } else if(texto.length == 1) {
-                this.elemento_seleccionado.texto += texto;
+                this.elemento_seleccionado.push_text(texto);
             } else if(texto == 'Backspace') {
-                let t = this.elemento_seleccionado.texto;
-                this.elemento_seleccionado.texto = t.slice(0, -1);
+                this.elemento_seleccionado.pop_text();
             } else if(texto == 'Enter') {
                 this.elemento_seleccionado = null;
             }
@@ -434,13 +473,25 @@ export class AutomataGrafico {
         this.elemento_seleccionado = null;
         if(evt.button === 0) { //left-click
             if(circle != null) {//hay un circulo, así que lo hemos seleccionado(para moverlo)
-                this.draggin = circle;
-                this.elemento_seleccionado = circle;
+                //si pulsa 'control' mientras pulsa el nodo se convierte en nodo final.
+                if(this.control) {
+                    circle.final = true;
+                } else {
+                    this.draggin = circle;
+                    this.elemento_seleccionado = circle;
+                }
             } else {
                 let linea = this.closest_line(p);
-                if(linea != null) {//hay linea, así que la movemos.
-                    this.shaping_transition = linea;
-                this.elemento_seleccionado = linea;
+                //hay linea, así que la movemos.
+                if(linea != null) {
+                    //si tenemos 'control' queremos cambiar la transición 
+                    if(this.control) {
+                        linea.nodoF = p;
+                        this.creating_transition = linea;
+                    } else {
+                        this.shaping_transition = linea;
+                        this.elemento_seleccionado = linea;
+                    }
                 }
                 else {//no hay nada, creamos un nuevo nodo.
                     this.nfa.nodes.push(new NodoGrafico(1, p));
@@ -490,12 +541,17 @@ export class AutomataGrafico {
         if(t != null) {
             let circle = this.closest_circle(p);
             if(circle != null) {
-                if(circle == t.nodoI) {
-                    t = new SelfTransition(circle, circle);
-                }  else {
-                    t.nodoF = circle;
-                }
+                //if there is already a transition, we remove it, because we are going to recreate it now
+                let idx: number = this.nfa.transitions.findIndex(tr => tr == t);
+                if(idx != -1) this.nfa.transitions.splice(idx, 1);
+
+                if(circle == t.nodoI) t = new SelfTransition(circle, circle, t.texto);
+                else t.nodoF = circle;
                 this.nfa.transitions.push(t);
+            } else {
+                //there is no circle, so if this transition already existed, we have to delete it
+                let idx = this.nfa.transitions.findIndex(trs => trs == t);
+                if(idx != -1) this.nfa.transitions.splice(idx, 1);
             }
         }
         this.creating_transition = null;

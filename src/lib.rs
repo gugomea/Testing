@@ -30,6 +30,8 @@ pub fn automata_to_regex(automata: JsValue) -> Result<JsValue, JsValue> {
     let transition_map: HashMap<(usize, usize), Vec<String>> = serde_wasm_bindgen::from_value(automata)?;
     if let Ok(gnfa) = GNFA::try_from(IRAutoamta { transition_map }) {
         let n = gnfa.n_states;
+        if n < 2 { return Err("not enough states".into()); }
+        //let result_gnfa = format!("{:#?}", gnfa);
         for i in 1..n - 1 {
             println!("ripping state {i}...");
             gnfa.rip_state(i);
@@ -38,9 +40,8 @@ pub fn automata_to_regex(automata: JsValue) -> Result<JsValue, JsValue> {
                 .for_each(|(k, v)| println!("{:?} => {}", k , v));
         }
 
-        //let result = format!("{:#?}", gnfa);
         let result = match gnfa.flow.borrow().get(&(0, n - 1)) {
-            Some(exp) => format!("{:?} => {}", (0, n-1), exp),
+            Some(exp) => format!("{:?} => {:#?}\n{}", (0, n-1), exp, exp),
             None => format!("Invalid Automata"),
         };
         return Ok(result.into());
