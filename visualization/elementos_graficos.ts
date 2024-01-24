@@ -121,20 +121,20 @@ export class TransicionGrafica {
         this.nodoF = nodoF;
         this.aux = undefined;
         this.visible = false;
-        this.texto = (letter == undefined) ? "": letter!;
+        this.texto = (letter == undefined || nodoI instanceof Punto) ? "": letter!;
         this.upper_arc = true;
     }
 
     push_text(t: string) {
-        this.texto += t;
+        if(this.nodoI instanceof NodoGrafico) this.texto += t;
     }
 
     pop_text() {
-        this.texto = this.texto.slice(0, -1);
+        if(this.nodoI instanceof NodoGrafico) this.texto = this.texto.slice(0, -1);
     }
 
     set_visible(v: boolean) {
-        this.visible = v;
+        if(this.nodoI instanceof NodoGrafico) this.visible = v;
     }
 
     upper(origin: Punto, target: Punto) {
@@ -279,10 +279,6 @@ class SelfTransition extends TransicionGrafica {
         this.draw_arrow(from, to, ctx);
     }
 
-    push_text(t: string): void { }
-    pop_text(): void { }
-    set_visible(v: boolean): void { }
-
     dist(p: Punto) {
         let I = this.nodoI.pos();
         let pointer = new Punto(I.x + this.length * Math.cos(this.slope), I.y - this.length * Math.sin(this.slope));
@@ -337,9 +333,8 @@ export class AutomataGrafico {
                 //the first state;
                 if(t.nodoI instanceof NodoGrafico) I = (t.nodoI as NodoGrafico).numero;
                 else I = 0;
-                let F = (t.nodoF as NodoGrafico).numero;
-                let key = `(${I}, ${F})`;
-                if(I == 0)t.texto = "ε";
+                let F = (t.nodoF as NodoGrafico).numero, key = `(${I}, ${F})`, text = t.texto;
+                if(I == 0) text = "ε";
                 if(IR_NFA.get(key) == undefined) IR_NFA.set(key, []);
                 IR_NFA.get(key)!.push(t.texto);
             }
@@ -486,8 +481,11 @@ export class AutomataGrafico {
                 if(linea != null) {
                     //si tenemos 'control' queremos cambiar la transición 
                     if(this.control) {
-                        linea.nodoF = p;
-                        this.creating_transition = linea;
+                        //if there is already a transition, we remove it, because we are going to recreate it now
+                        let idx: number = this.nfa.transitions.findIndex(tr => tr == linea);
+                        if(idx != -1) this.nfa.transitions.splice(idx, 1);
+
+                        this.creating_transition = new TransicionGrafica(linea.nodoI, p, linea.texto);
                     } else {
                         this.shaping_transition = linea;
                         this.elemento_seleccionado = linea;
@@ -541,17 +539,9 @@ export class AutomataGrafico {
         if(t != null) {
             let circle = this.closest_circle(p);
             if(circle != null) {
-                //if there is already a transition, we remove it, because we are going to recreate it now
-                let idx: number = this.nfa.transitions.findIndex(tr => tr == t);
-                if(idx != -1) this.nfa.transitions.splice(idx, 1);
-
                 if(circle == t.nodoI) t = new SelfTransition(circle, circle, t.texto);
                 else t.nodoF = circle;
                 this.nfa.transitions.push(t);
-            } else {
-                //there is no circle, so if this transition already existed, we have to delete it
-                let idx = this.nfa.transitions.findIndex(trs => trs == t);
-                if(idx != -1) this.nfa.transitions.splice(idx, 1);
             }
         }
         this.creating_transition = null;
