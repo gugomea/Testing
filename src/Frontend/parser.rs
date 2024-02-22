@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{any, collections::VecDeque};
 
 use crate::Frontend::{error::*, tokens::*};
 
@@ -180,4 +180,121 @@ fn unroll_expressions(expressions: &mut Vec<Option<Expression>>, depth: &mut Vec
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod valid_expressions {
+    use super::*;
+
+    #[test]
+    fn simple_concatenation() {
+        use Expression::*;
+        use Literal::*;
+        let input = "word";
+        let expression = parse(input).unwrap();
+        assert_eq!(
+            expression,
+            concatenation(vec![ l(atom('w')), l(atom('o')), l(atom('r')), l(atom('d'))]),
+        );
+    }
+
+    #[test]
+    fn ranges() {
+        use Expression::*;
+        use Literal::*;
+        let normal_range = "[]a-z0-9ñÑ.-]";
+        let reverse_range = "[^]a-z0-9ñÑ.-]";
+        let expression = parse(normal_range).unwrap();
+        assert_eq!(
+            expression,
+            any(vec![atom(']'), range('a'..='z'), range('0'..='9'), atom('ñ'), atom('Ñ'), atom('-'), atom('.')]),
+        );
+
+        let expression = parse(reverse_range).unwrap();
+        assert_eq!(
+            expression,
+            anyBut(vec![atom(']'), range('a'..='z'), range('0'..='9'), atom('ñ'), atom('Ñ'), atom('-'), atom('.')]),
+        );
+    }
+
+    #[test]
+    fn quantifiers() {
+        use Expression::*;
+        use Literal::*;
+        let input = "a*b?c+";
+        let expression = parse(input).unwrap();
+        assert_eq!(
+            expression,
+            concatenation(vec![zero_or_more(Box::new(l(atom('a')))), optional(Box::new(l(atom('b')))), one_or_more(Box::new(l(atom('c'))))]),
+        );
+    }
+
+    #[test]
+    fn simple_groups() {
+        use Expression::*;
+        use Literal::*;
+        let input = "0(1(2)1)0";
+        let expression = parse(input).unwrap();
+        assert_eq!(
+            expression,
+            concatenation(vec![
+                l(atom('0')),
+                group(Box::new(concatenation(vec![
+                            l(atom('1')),
+                            group(Box::new(l(atom('2')))),
+                            l(atom('1')),
+                ]))),
+                l(atom('0')),
+            ]),
+        );
+    }
+}
+
+#[cfg(test)]
+mod invalid_expressions {
+    use super::*;
+
+    #[test]
+    fn union_error() {
+        let input1 = "(abc))";
+        let input2 = "((abc)";
+        let Err(exp1) = parse(input1) else { panic!("wrong test") };
+        let Err(exp2) = parse(input2) else { panic!("wrong test") };
+        assert_eq!(ErrorType::union, exp1.typ());
+        assert_eq!(ErrorType::union, exp2.typ());
+    }
+
+    #[test]
+    fn range_error() {
+        let input = "[a-b";
+        let Err(exp) = parse(input) else { panic!("wrong test") };
+        assert_eq!(ErrorType::range, exp.typ());
+    }
+
+    #[test]
+    fn duplicated_quiantifier() {
+        let input1 = "a??";
+        let input2 = "a++";
+        let input3 = "a**";
+        let Err(exp1) = parse(input1) else { panic!("wrong test") };
+        let Err(exp2) = parse(input2) else { panic!("wrong test") };
+        let Err(exp3) = parse(input3) else { panic!("wrong test") };
+        assert_eq!(ErrorType::unexpected, exp1.typ());
+        assert_eq!(ErrorType::unexpected, exp2.typ());
+        assert_eq!(ErrorType::unexpected, exp3.typ());
+    }
+
+    #[test]
+    fn empty_expression() {
+        let input = "(a)(b)()";
+        let Err(exp) = parse(input) else { panic!("wrong test") };
+        assert_eq!(ErrorType::emptyExpression, exp.typ());
+    }
+
+    #[test]
+    fn invalid_union() {
+        let input = "abc|def|";
+        let Err(exp) = parse(input) else { panic!("wrong test") };
+        assert_eq!(ErrorType::union, exp.typ());
+    }
 }

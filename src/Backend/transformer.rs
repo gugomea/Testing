@@ -1,6 +1,6 @@
 use std::{hash::{Hash, Hasher}, collections::{hash_map::DefaultHasher, HashMap}};
 
-use super::{nfa::NFA, dfa::DFA, intervals::Interval, nfa::Table};
+use super::{nfa::NFA, dfa::DFA, intervals::Interval, automata::Table};
 
 //If any of the ComplexState(our simple states on the dfa) has a
 //state that is final on the nfa, or have empty transition to 
@@ -29,7 +29,6 @@ fn empty_transitions(nfa: &NFA, state: isize) -> Vec<isize> {
             }
         }
     }
-    //println!("  resulting empty transitions from state: {state}: {:?}", result);
     return result;
 }
 
@@ -78,7 +77,8 @@ pub fn nfa_to_dfa(nfa: &NFA) -> DFA {
 
     let mut D = vec![ComplexState::new([vec![0], empty_transitions(nfa, 0)].concat())];
     //let Σ = nfa.alphabet();
-    let Σ = ('\u{0}'..=char::MAX).map(Interval::char).collect::<Vec<_>>();
+    //let Σ = ('\u{0}'..=char::MAX).map(Interval::char).collect::<Vec<_>>();
+    let Σ = ('\u{0}'..='\u{1000}').map(Interval::char).collect::<Vec<_>>();
     //println!("alphabet: {:?}", Σ);
     let mut δd = vec![Table::default()];
 
@@ -158,33 +158,15 @@ impl Hash for ComplexState {
 
 #[test]
 fn hash_test() {
-
     let states = HashMap::from([(ComplexState::new(vec![1, 2, 3, 4, 5]), 1)]);
 
-    let possible_key1 = ComplexState::new(vec![1, 2, 5, 4, 3]);
+    let possible_key1 = ComplexState::new(vec![1, 2, 5, 4, 3, 4, 1, 5, 3]);
     let possible_key2 = ComplexState::new(vec![3, 2, 5, 4, 1]);
-    let impossible_key1 = ComplexState::new(vec![3, 2, 5, 4, 1, 1]); 
+    let impossible_key1 = ComplexState::new(vec![3, 2, 5, 4, 1, 9]); 
     let impossible_key2 = ComplexState::new(vec![1, 2, 3, 4, 5, 6]); 
 
     assert_eq!(Some(&1), states.get(&possible_key1));
     assert_eq!(Some(&1), states.get(&possible_key2));
     assert_eq!(None, states.get(&impossible_key1));
     assert_eq!(None, states.get(&impossible_key2));
-}
-
-#[test]
-fn simple_compilation() {
-    use crate::Frontend::parser::parse;
-    use super::build::build;
-    //let input = "((a|bc|de*)+|((f)))f+f?".repeat(1);
-    let input = "(a|b)|cd".repeat(1);
-    let instant = std::time::Instant::now();
-    let regex = parse(&input).unwrap();
-    let nfa = build(regex);
-    //println!("{:#?}", nfa);
-    let dfa = nfa_to_dfa(&nfa);
-    let elapsed = instant.elapsed();
-    println!("elapsed: {:?}", elapsed);
-
-    dbg!(dfa);
 }

@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use super::nfa::{Automata, Table};
+use super::automata::{Automata, Table};
 use super::intervals::Interval;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

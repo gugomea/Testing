@@ -18,23 +18,70 @@ pub fn build(input: Expression) -> NFA {
 }
 
 #[test]
-fn build_automata() {
+fn build_literal() {
     use crate::Frontend::*;
-    use std::time::Instant;
-    //let str_input = "((a|bc|de*)+|((f)))f+f?".repeat(500_000);
-    //let str_input = "(((a)))|b*c?d+(sp)|tt".repeat(100000);
-    //let str_input = "a|b|c|d".repeat(1000);
-    //let str_input = "abcd".repeat(2_000_000);
+    let input = "🙉";
+    let parsed_expression = parser::parse(input).ok().unwrap();
+    let built_automata = build(parsed_expression);
+    let automata = NFA::simple(Interval::char('🙉'));
+    assert_eq!(built_automata, automata, "literal autoamta");
+}
 
-    let str_input = "[^abcd-z]".repeat(1_000_00);
-    for _ in 0..10 {
-        let now = Instant::now();
+#[test]
+fn build_ranges() {
+    use crate::Frontend::*;
+    let input = "[a-zA-ZñÑ. -]";
+    let parsed_expression = parser::parse(input).ok().unwrap();
+    let built_automata = build(parsed_expression);
+    let automata = NFA::from_range([
+        Interval::new('a', 'z'), Interval::new('A', 'Z'), Interval::char('ñ'), 
+        Interval::char('Ñ'), Interval::char('.'), Interval::char('-'), Interval::char(' ')
+    ].into_iter());
+    assert_eq!(built_automata, automata, "literal autoamta");
+}
 
-        let parsed_expression = parser::parse(&str_input).ok().unwrap();
-        let automata = build(parsed_expression);
+#[test]
+fn build_quantifiers() {
+    use crate::Frontend::*;
+    let input = "a*b?c+";
+    let parsed_expression = parser::parse(input).ok().unwrap();
+    let built_automata = build(parsed_expression);
+    let automata = NFA::concat_all_directly([
+        NFA::zero_or_more(NFA::simple(Interval::char('a'))),
+        NFA::optional(NFA::simple(Interval::char('b'))),
+        NFA::one_or_more(NFA::simple(Interval::char('c'))),
+    ].into_iter());
+    assert_eq!(built_automata, automata, "literal autoamta");
+}
 
-        let elapsed = now.elapsed();
-        println!("Elapsed BUILDING This crate: {:.2?}", elapsed);
-        println!("{:#?}", automata.n_states);
-    }
+#[test]
+fn build_union() {
+    use crate::Frontend::*;
+    let input = "a*b?|c+d|ef";
+    let parsed_expression = parser::parse(input).ok().unwrap();
+    let built_automata = build(parsed_expression);
+    let automata = NFA::union(vec![
+        NFA::concat_all_directly([NFA::zero_or_more(NFA::simple(Interval::char('a'))), NFA::optional(NFA::simple(Interval::char('b')))].into_iter()),
+        NFA::concat_all_directly([NFA::one_or_more(NFA::simple(Interval::char('c'))), NFA::simple(Interval::char('d'))].into_iter()),
+        NFA::concat_all_directly([NFA::simple(Interval::char('e')), NFA::simple(Interval::char('f'))].into_iter()),
+    ]);
+    assert_eq!(built_automata, automata, "literal autoamta");
+}
+
+#[test]
+fn build_with_groups() {
+    use crate::Frontend::*;
+    let input = "(a|bc)*|de";
+    let parsed_expression = parser::parse(input).ok().unwrap();
+    let built_automata = build(parsed_expression);
+    let automata = NFA::union(vec![
+        NFA::zero_or_more(
+            NFA::union(vec![
+                NFA::simple(Interval::char('a')),
+                NFA::concat_all_directly([NFA::simple(Interval::char('b')), NFA::simple(Interval::char('c'))].into_iter()),
+            ])
+        ),
+        NFA::concat_all_directly([NFA::simple(Interval::char('d')), NFA::simple(Interval::char('e'))].into_iter()),
+    ]);
+    assert_eq!(built_automata, automata, "literal autoamta");
 }

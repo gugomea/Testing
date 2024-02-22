@@ -1,94 +1,9 @@
-use std::{char, collections::HashSet, fmt::Debug, iter::Peekable, time::Instant};
-
-use crate::Backend::{intervals::Interval, transformer};
+use std::{collections::HashSet, fmt::Debug, iter::Peekable};
+use crate::Backend::intervals::Interval;
 use serde::{Serialize, Deserialize};
+use super::automata::{Automata, Table, Transition};
 
-pub trait Automata<Domain, Image>
-where Domain: PartialEq + Eq + PartialOrd + Debug + Clone + Copy,
-{
-    fn set_current(&mut self, curr: Option<Image>);
-    fn matches(&mut self, input: &mut Peekable<impl Iterator<Item = Domain>>) -> Option<Vec<Domain>> {
-        let (mut acc, mut maybe) = (vec![], vec![]);
-        //skip not matching characters
-        while let Some(&n) = input.peek() {
-            if self.next(n).is_some() {
-                break;
-            }
-            //println!("Skipping: {:?}", n);
-            input.next();
-        }
-        //take longest matching string
-        while let Some(&n) = input.peek() {
-            //println!("processing: {:?}", n);
-            let current_states = self.next(n);
-            //     error state
-            if current_states.is_none() {
-                self.set_current(None);
-                return if !acc.is_empty() { Some(acc) } else { None };
-            }
-            maybe.push(n);
-            self.set_current(current_states);
-            if self.is_final() {
-                acc.append(&mut maybe);
-            }
-            input.next();
-        }
-        return if !acc.is_empty() { Some(acc) } else { None };
-
-    }
-    fn next(&self, input: Domain) -> Option<Image>;
-    fn is_final(&self) -> bool;
-    fn is_error(&self) -> bool;
-}
-
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
-pub struct Transition<Domain, Image> {
-    pub start : Domain,
-    pub end: Image
-}
-
-impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq> Transition<Domain, Image> {
-    pub fn new(start: Domain, end: Image) -> Self {
-        Transition { start, end }
-    }
-
-    pub fn empty(start: Domain) -> Self {
-        Transition::new(start, Image::default())
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
-pub struct Table<Domain, Image> {
-    pub transitions: Vec<Transition<Domain, Image>>,
-}
-
-impl<Domain, Image> Default for Table<Domain, Image> {
-    fn default() -> Self {
-        Self { transitions: vec![] }
-    }
-}
-
-impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq + PartialOrd> Table<Domain, Image> {
-    pub fn get_mut(&mut self, it: Domain) -> Option<&mut Transition<Domain, Image>> {
-        self.transitions.iter_mut().find(|x| x.start >= it)
-    }
-
-    pub fn get(&self, it: Domain) -> Option<&Image> {
-        Some(&self.transitions.iter().find(|x| x.start >= it)?.end)
-    }
-
-    pub fn from_tuples(transitions: Vec<(Domain, Image)>) -> Self {
-        Self { 
-            transitions: transitions.into_iter().map(|(d, i)| Transition::new(d, i)).collect(),
-        }
-    }
-
-    pub fn add(&mut self, d: Domain, i: Image) {
-        self.transitions.push(Transition::new(d, i));
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NFA {
     pub n_states: usize,
     pub current: Option<HashSet<usize>>,
@@ -100,6 +15,7 @@ impl Automata<Interval, HashSet<usize>> for NFA {
     fn set_current(&mut self, curr: Option<HashSet<usize>>) {
         self.current = curr;
     }
+
     fn next(&self, input: Interval) -> Option<HashSet<usize>> {
         let Some(current) = &self.current else {return None};
         let result: HashSet<usize> = current
@@ -385,36 +301,11 @@ impl NFA {
 
 }
 
-#[test]
-fn concatenation() {
-    let mut trs = Table::default();
-    trs.transitions.push(Transition::new(Interval::char('a'), vec![1]));
-    let nfa1 = NFA {
-        n_states: 2,
-        current: Some(HashSet::from([0])),
-        empty_transitions: vec![vec![], vec![]],
-        transition_function: vec![trs, Table::default()],
-    };
+#[cfg(test)]
+mod unit_test {
+    use super::*;
 
-    let mut trs = Table::default();
-    trs.transitions.push(Transition::new(Interval::char('b'), vec![1]));
-    let nfa2 = NFA {
-        n_states: 2,
-        current: Some(HashSet::from([0])),
-        empty_transitions: vec![vec![], vec![]],
-        transition_function: vec![trs, Table::default()],
-    };
-
-    println!("{:#?}", NFA::concat(nfa1.clone(), nfa2.clone()));
-
-    println!("{:#?}", NFA::concat_directly(nfa1.clone(), nfa2.clone(), Interval::char('b')));
-
-    println!("{:#?}", NFA::concat_all_directly(vec![nfa1.clone(), nfa2.clone()].into_iter()));
-}
-
-#[test]
-fn union() {
-    let crear = |ch: char| {
+    fn create (ch: char) -> NFA {
         let mut trs = Table::default();
         trs.transitions.push(Transition::new(Interval::char(ch), vec![1]));
         NFA {
@@ -423,32 +314,108 @@ fn union() {
             empty_transitions: vec![vec![], vec![]],
             transition_function: vec![trs, Table::default()],
         }
-    };
-    println!("{:#?}", NFA::union(vec![
-            crear('a'), crear('b'),crear('c'), crear('d')
-    ]));
-}
-
-#[test]
-fn match_language_nfa() {
-    use super::build::build;
-    use crate::Frontend::parser::parse;
-
-    let input = std::fs::read_to_string("bible.txt").unwrap();
-    let exp = "\"[^\"]*\"";//"
-    let mut chars = input.chars().map(Interval::char).peekable();
-
-    println!("All string literals:");
-    let expression = parse(exp).unwrap();
-    let instant = Instant::now();
-    while let Some(_) = chars.peek() {
-        let automata = build(expression.clone());
-        let mut automata = transformer::nfa_to_dfa(&automata);
-        //println!("Automata: {:#?}", automata);return;
-        let Some(matching) = automata.matches(&mut chars) else { continue };
-        print!("\x1b[33mResultado:\x1b[0m");
-        matching.iter().for_each(|x| print!("{}", x));
-        println!();
     }
-    println!("elapsed: {:?}", instant.elapsed());
+
+    #[test]
+    fn concatenation() {
+        let nfa1 = create('a');
+        let nfa2 = create('b');
+
+        let simple_concatenation = NFA::concat(nfa1.clone(), nfa2.clone());
+        let direct_concatenation = NFA::concat_directly(nfa1.clone(), nfa2.clone(), Interval::char('b'));
+        let direct_concatenation_general = NFA::concat_all_directly([nfa1.clone(), nfa2.clone()].into_iter());
+
+        //Nº of states
+        assert_eq!(simple_concatenation.n_states, 4, "SIMPLE CONCATENATION: Expected nº of states: 4");
+        assert_eq!(direct_concatenation.n_states, 3, "DIRECT CONCATENATION: Expected nº of states: 3");
+        assert_eq!(direct_concatenation_general.n_states, 3, "DIRECT GENERAL CONCATENATION: Expected nº of states: 3");
+
+        //Empty transitions
+        assert_eq!(simple_concatenation.empty_transitions, vec![vec![], vec![1], vec![], vec![]], "SIMPLE CONCATENATION");
+        assert_eq!(direct_concatenation.empty_transitions, vec![vec![], vec![], vec![]], "DIRECT CONCATENATION");
+        assert_eq!(direct_concatenation_general.empty_transitions, vec![vec![], vec![], vec![]], "DIRECT GENERAL CONCATENATION");
+
+        //Transition function
+        let simple_table = vec![
+            Table { transitions: vec![Transition::new(Interval::char('a'), vec![1])] }, Table::default(),
+            Table { transitions: vec![Transition::new(Interval::char('b'), vec![1])] }, Table::default(),
+        ];
+        let direct_table = vec![
+            Table { transitions: vec![Transition::new(Interval::char('a'), vec![1])] },
+            Table { transitions: vec![Transition::new(Interval::char('b'), vec![1])] }, Table::default(),
+        ];
+        let direct_table_general = vec![
+            Table { transitions: vec![Transition::new(Interval::char('a'), vec![1])] },
+            Table { transitions: vec![Transition::new(Interval::char('b'), vec![1])] }, Table::default(),
+        ];
+        assert_eq!(simple_concatenation.transition_function, simple_table, "SIMPLE CONCATENATION");
+        assert_eq!(direct_concatenation.transition_function, direct_table, "DIRECT CONCATENATION");
+        assert_eq!(direct_concatenation_general.transition_function, direct_table_general, "DIRECT GENERAL CONCATENATION");
+    }
+
+    #[test]
+    fn union() {
+        let union_automata = NFA::union(vec![create('a'), create('b'),create('c'), create('d')]);
+        //Nº of states
+        assert_eq!(union_automata.n_states, 10, "Nº states");
+        //Empty transition
+        let non_empty: Vec<Vec<isize>> = union_automata.empty_transitions.clone().into_iter().filter(|x| !x.is_empty()).collect();
+        assert_eq!(non_empty, vec![vec![1, 3, 5, 7], vec![7], vec![5], vec![3], vec![1]], "Empty transitions");
+        //Transition function
+        let tf = union_automata.transition_function[1].get(Interval::char('a'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: a");
+        let tf = union_automata.transition_function[3].get(Interval::char('b'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: b");
+        let tf = union_automata.transition_function[5].get(Interval::char('c'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: c");
+        let tf = union_automata.transition_function[7].get(Interval::char('d'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: d");
+    }
+
+    #[test]
+    fn optional() {
+        let nfa = NFA::concat_all_directly([NFA::optional(create('a')), create('b')].into_iter());
+        //Nº of states
+        assert_eq!(nfa.n_states, 4, "Nº states");
+        //Empty transition
+        let empty: Vec<Vec<isize>> = vec![vec![1], vec![1], vec![], vec![]];
+        assert_eq!(empty, nfa.empty_transitions, "Empty transitions");
+        //Transition function
+        let tf = nfa.transition_function[0].get(Interval::char('a'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: a");
+        let tf = nfa.transition_function[2].get(Interval::char('b'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: b");
+    }
+
+    #[test]
+    fn zero_or_more() {
+        let nfa = NFA::concat_all_directly([NFA::zero_or_more(create('a')), create('b')].into_iter());
+        //Nº of states
+        assert_eq!(nfa.n_states, 4, "Nº states");
+        //Empty transition
+        let empty: Vec<Vec<isize>> = vec![vec![1], vec![-1, 1], vec![], vec![]];
+        assert_eq!(empty, nfa.empty_transitions, "Empty transitions");
+        //Transition function
+        let tf = nfa.transition_function[0].get(Interval::char('a'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: a");
+        let tf = nfa.transition_function[2].get(Interval::char('b'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: b");
+    }
+
+    #[test]
+    fn one_or_more() {
+        let nfa = NFA::concat_all_directly([NFA::one_or_more(create('a')), create('b')].into_iter());
+        //Nº of states
+        assert_eq!(nfa.n_states, 4, "Nº states");
+        //Empty transition
+        let empty: Vec<Vec<isize>> = vec![vec![], vec![-1, 1], vec![], vec![]];
+        assert_eq!(empty, nfa.empty_transitions, "Empty transitions");
+        //Transition function
+        let tf = nfa.transition_function[0].get(Interval::char('a'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: a");
+        let tf = nfa.transition_function[2].get(Interval::char('b'));
+        assert_eq!(tf, Some(&vec![1]), "Transition function: b");
+
+    }
 }
+

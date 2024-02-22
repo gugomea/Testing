@@ -4,7 +4,7 @@ pub mod Backend;
 
 use std::collections::HashMap;
 
-use Backend::{intermediate_automata::IRAutoamta, nfa_to_regex::GNFA};
+use Backend::{intermediate_automata::IRAutoamta, gnfa::GNFA};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

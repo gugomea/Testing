@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::Frontend::tokens::{Literal, Expression};
+use crate::Frontend::tokens::Literal;
 use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
