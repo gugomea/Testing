@@ -1,0 +1,38 @@
+
+running 1 test
+All string literals:
+[33mResultado:[0m"Project
+Gutenberg"
+[33mResultado:[0m"Project Gutenberg"
+[33mResultado:[0m"the Foundation"
+[33mResultado:[0m"Project Gutenberg"
+[33mResultado:[0m"Project
+Gutenberg"
+[33mResultado:[0m"Project Gutenberg"
+[33mResultado:[0m"Plain Vanilla ASCII"
+[33mResultado:[0m"Plain Vanilla ASCII"
+[33mResultado:[0m"Information about donations to
+     the Project Gutenberg Literary Archive Foundation."
+[33mResultado:[0m"Defects,"
+[33mResultado:[0m"Right
+of Replacement or Refund"
+elapsed: 304.792478ms
+test Backend::nfa::match_language_nfa ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.31s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+

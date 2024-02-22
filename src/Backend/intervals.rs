@@ -1,10 +1,43 @@
+use std::fmt::Display;
+
 use crate::Frontend::tokens::{Literal, Expression};
 use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Interval {
-    first: char,
-    last: char,
+    pub first: char,
+    pub last: char,
+}
+
+impl PartialOrd for Interval {
+    fn lt(&self, other: &Self) -> bool {
+        self.first > other.first && self.last <other.last
+    }
+    fn le(&self, other: &Self) -> bool {
+        self.first >= other.first && self.last <= other.last
+    }
+    fn gt(&self, other: &Self) -> bool {
+        self.first < other.first && self.last > other.last
+    }
+    fn ge(&self, other: &Self) -> bool {
+        self.first <= other.first && self.last >= other.last
+    }
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self < other { Some(std::cmp::Ordering::Less) }
+        else if self > other { Some(std::cmp::Ordering::Greater) }
+        else { Some(std::cmp::Ordering::Equal) }
+    }
+}
+
+
+impl Display for Interval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.first == self.last {
+            write!(f, "{}", self.first)
+        } else {
+            write!(f, "[{}-{}]", self.first, self.last)
+        }
+    }
 }
 
 

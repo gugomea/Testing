@@ -1,5 +1,16 @@
+use std::{char, collections::HashSet, fmt::Debug, iter::Peekable, time::Instant};
+
 use crate::Backend::intervals::Interval;
 use serde::{Serialize, Deserialize};
+
+trait Automata<Domain, Image>
+where Domain: PartialEq + Eq + PartialOrd + Debug + Clone,
+{
+    fn matches(&mut self, input: &mut Peekable<impl Iterator<Item = Domain>>) -> Option<Vec<Domain>>;
+    fn next(&self, input: Domain) -> Image;
+    fn is_final(&self) -> bool;
+    fn is_error(&self) -> bool;
+}
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Transition<Domain, Image> {
@@ -28,13 +39,13 @@ impl<Domain, Image> Default for Table<Domain, Image> {
     }
 }
 
-impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq> Table<Domain, Image> {
+impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq + PartialOrd> Table<Domain, Image> {
     pub fn get_mut(&mut self, it: Domain) -> Option<&mut Transition<Domain, Image>> {
-        self.transitions.iter_mut().find(|x| x.start == it)
+        self.transitions.iter_mut().find(|x| x.start >= it)
     }
 
     pub fn get(&self, it: Domain) -> Option<&Image> {
-        Some(&self.transitions.iter().find(|x| x.start == it)?.end)
+        Some(&self.transitions.iter().find(|x| x.start >= it)?.end)
     }
 
     pub fn from_tuples(transitions: Vec<(Domain, Image)>) -> Self {
@@ -51,16 +62,63 @@ impl<Image: Clone + Default, Domain: Copy + Clone + PartialEq + Eq> Table<Domain
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NFA {
     pub n_states: usize,
-    pub current: usize,
+    pub current: HashSet<usize>,
     pub empty_transitions: Vec<Vec<isize>>,
     pub transition_function: Vec<Table<Interval, Vec<isize>>>,
+}
+
+impl Automata<Interval, HashSet<usize>> for NFA {
+    fn next(&self, input: Interval) -> HashSet<usize> {
+        self.current
+            .iter()
+            .flat_map(|&x| self.tf(x, input))
+            .collect()
+    }
+
+    fn matches(&mut self, input: &mut Peekable<impl Iterator<Item = Interval>>) -> Option<Vec<Interval>> {
+        let (mut acc, mut maybe) = (vec![], vec![]);
+        self.current = self.closure([0].into_iter());
+        //skip not matching characters
+        while let Some(&n) = input.peek() {
+            let current_states = self.next(n);
+            if !current_states.is_empty() {
+                break;
+            }
+            input.next();
+        }
+        //take longest matching string
+        while let Some(&n) = input.peek() {
+            let current_states = self.next(n);
+            //     error state
+            if current_states.is_empty() {
+                self.current = current_states;
+                return if !acc.is_empty() { Some(acc) } else { None };
+            }
+            maybe.push(n);
+            self.current = current_states;
+            if self.is_final() {
+                acc.append(&mut maybe);
+            }
+            input.next();
+        }
+        return if !acc.is_empty() { Some(acc) } else { None };
+    }
+
+    fn is_error(&self) -> bool {
+        self.current.is_empty()
+    }
+
+    fn is_final(&self) -> bool {
+        !self.is_error() &&
+        self.current.contains(&(self.n_states - 1))
+    }
 }
 
 impl Default for NFA {
     fn default() -> Self {
         Self {
             n_states: 1,
-            current: 0,
+            current: HashSet::from([0]),
             empty_transitions: vec![vec![]],
             transition_function: vec![Table::default()],
         }
@@ -68,6 +126,37 @@ impl Default for NFA {
 }
 
 impl NFA {
+
+    pub fn tf(&self, state: usize, input: Interval) -> HashSet<usize> {
+        let normalize = |a: isize| (state as isize + a) as usize;
+        let from_empty = self.empty_transitions[state].clone().into_iter().map(normalize).chain([state]);
+        //closure of the set of { 'state' + "states through the empty transitions from 'state'" }
+        self.closure(
+            from_empty.flat_map(|st|
+                self.transition_function[st].get(input)
+                .cloned()
+                .unwrap_or(vec![])
+                .into_iter()
+                .map(move |a| (st as isize + a) as usize)
+            )
+        )
+    }
+
+    fn closure(&self, v: impl Iterator<Item = usize>) -> HashSet<usize>{
+        let mut stack: Vec<usize> = v.collect();
+        let mut result = HashSet::new();
+        while let Some(curr) = stack.pop() {
+            if result.contains(&curr) { continue; }
+            for &i in &self.empty_transitions[curr] {
+                let aux = (i + curr as isize) as usize;
+                if !result.contains(&aux) {
+                    stack.push(aux);
+                }
+            }
+            result.insert(curr);
+        }
+        return result;
+    }
 
     pub fn is_simple(&self) -> Option<Interval>{
         let tf = &self.transition_function[0];
@@ -90,7 +179,7 @@ impl NFA {
         let table = Table { transitions };
         Self {
             n_states: 2,
-            current: 0,
+            current: HashSet::from([0]),
             empty_transitions: vec![vec![], vec![]],
             transition_function: vec![table, Table::default()],
 
@@ -104,7 +193,7 @@ impl NFA {
         let table = Table { transitions };
         Self {
             n_states: 2,
-            current: 0,
+            current: HashSet::from([0]),
             empty_transitions: vec![vec![], vec![]],
             transition_function: vec![table, Table::default()],
 
@@ -117,7 +206,7 @@ impl NFA {
 
         Self {
             n_states: n + m,
-            current: 0,
+            current: HashSet::from([0]),
             empty_transitions: [nfa1.empty_transitions, nfa2.empty_transitions].concat(),
             transition_function: [nfa1.transition_function, nfa2.transition_function].concat(),
         }
@@ -134,7 +223,7 @@ impl NFA {
 
         Self {
             n_states: n + m - 1,
-            current: 0,
+            current: HashSet::from([0]),
             empty_transitions: [nfa1.empty_transitions, nfa2.empty_transitions[1..].to_vec()].concat(),
             transition_function: tf,
         }
@@ -147,7 +236,6 @@ impl NFA {
         let mut ets = first.empty_transitions;
 
         for (_i, mut nfa) in nfas.enumerate() {
-            //println!("current: {:?}", nfa);
             let mut l_ets = ets.pop().unwrap();
             let l_tfs = tfs.pop().unwrap();
             for mut t in l_tfs.transitions {
@@ -165,7 +253,7 @@ impl NFA {
 
         Self {
             n_states: tfs.len(),
-            current: 0,
+            current: HashSet::from([0]),
             empty_transitions: ets,
             transition_function: tfs,
         }
@@ -185,7 +273,7 @@ impl NFA {
 
         Self {
             n_states: tfs.len(),
-            current: 0,
+            current: HashSet::from([0]),
             empty_transitions: ets,
             transition_function: tfs,
         }
@@ -220,7 +308,7 @@ impl NFA {
 
         Self {
             n_states: n + 2,
-            current: 0,
+            current: HashSet::from([0]),
             empty_transitions: ets,
             transition_function: tfs,
         }
@@ -271,7 +359,7 @@ fn concatenation() {
     trs.transitions.push(Transition::new(Interval::char('a'), vec![1]));
     let nfa1 = NFA {
         n_states: 2,
-        current: 0,
+        current: HashSet::from([0]),
         empty_transitions: vec![vec![], vec![]],
         transition_function: vec![trs, Table::default()],
     };
@@ -280,7 +368,7 @@ fn concatenation() {
     trs.transitions.push(Transition::new(Interval::char('b'), vec![1]));
     let nfa2 = NFA {
         n_states: 2,
-        current: 0,
+        current: HashSet::from([0]),
         empty_transitions: vec![vec![], vec![]],
         transition_function: vec![trs, Table::default()],
     };
@@ -299,12 +387,35 @@ fn union() {
         trs.transitions.push(Transition::new(Interval::char(ch), vec![1]));
         NFA {
             n_states: 2,
-            current: 0,
+            current: HashSet::from([0]),
             empty_transitions: vec![vec![], vec![]],
             transition_function: vec![trs, Table::default()],
         }
     };
     println!("{:#?}", NFA::union(vec![
-                                 crear('a'), crear('b'),crear('c'), crear('d')
+            crear('a'), crear('b'),crear('c'), crear('d')
     ]));
+}
+
+#[test]
+fn match_language_nfa() {
+    use super::build::build;
+    use crate::Frontend::parser::parse;
+
+    let input = std::fs::read_to_string("bible.txt").unwrap();
+    let exp = "\"[^\"]*\"";//"
+    let mut chars = input.chars().map(Interval::char).peekable();
+
+    println!("All string literals:");
+    let expression = parse(exp).unwrap();
+    let mut automata = build(expression);
+    let instant = Instant::now();
+    while let Some(_) = chars.peek() {
+        let Some(matching) = automata.matches(&mut chars) else { continue };
+        //println!("Automata: {:#?}", automata);return;
+        print!("\x1b[33mResultado:\x1b[0m");
+        matching.iter().for_each(|x| print!("{}", x));
+        println!();
+    }
+    println!("elapsed: {:?}", instant.elapsed());
 }
