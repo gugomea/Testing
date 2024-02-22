@@ -78,14 +78,7 @@ pub fn nfa_to_dfa(nfa: &NFA) -> DFA {
 
     let mut D = vec![ComplexState::new([vec![0], empty_transitions(nfa, 0)].concat())];
     //let Σ = nfa.alphabet();
-    let Σ = vec![
-        Interval::new('a', 'a'),
-        Interval::new('b', 'b'),
-        Interval::new('c', 'c'),
-        Interval::new('d', 'd'),
-        Interval::new('e', 'e'),
-        Interval::new('f', 'f'),
-    ];
+    let Σ = ('\u{0}'..=char::MAX).map(Interval::char).collect::<Vec<_>>();
     //println!("alphabet: {:?}", Σ);
     let mut δd = vec![Table::default()];
 
@@ -125,7 +118,7 @@ pub fn nfa_to_dfa(nfa: &NFA) -> DFA {
 
     DFA {
         n_states,
-        current: 0,
+        current: Some(0),
         final_states,
         transition_function: δd,
     }
