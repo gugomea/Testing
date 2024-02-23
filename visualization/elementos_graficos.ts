@@ -103,8 +103,6 @@ function draw_text(textPoint: Punto, slope_angle: number, perpendicular_angle: n
     ctx.rotate(-sp_angle);
 }
 
-
-
 export class TransicionGrafica {
 
     nodoI: NodoGrafico | Punto;
@@ -470,7 +468,7 @@ export class AutomataGrafico {
             if(circle != null) {//hay un circulo, así que lo hemos seleccionado(para moverlo)
                 //si pulsa 'control' mientras pulsa el nodo se convierte en nodo final.
                 if(this.control) {
-                    circle.final = true;
+                    circle.final = !circle.final;
                 } else {
                     this.draggin = circle;
                     this.elemento_seleccionado = circle;

@@ -1,4 +1,4 @@
 "Esto es un texto entre comillas"
 "pero esto también es un texto entre comillas."
 "tercero"
-"este es el texto final, y contiene números como 1 y 18"
+"este es el texto final, contiene números como 1 o 18 y emojis como 🙉"

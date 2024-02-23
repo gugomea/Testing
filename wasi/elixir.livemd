@@ -1,0 +1,111 @@
+<!-- livebook:{"persist_outputs":true} -->
+
+# Elixir
+
+```elixir
+Mix.install([
+  {:wasmex, "~> 0.8.3"}
+])
+```
+
+## WASM
+
+```elixir
+{:ok, store} =
+  Wasmex.Store.new_wasi(%Wasmex.Wasi.WasiOptions{
+    preopen: [
+      %Wasmex.Wasi.PreopenOptions{path: "..", alias: "."}
+    ]
+  })
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, #Wasmex.StoreOrCaller<#Reference<0.1715306117.2113142786.261364>>}
+```
+
+```elixir
+wasm_file = File.read!("../target/wasm32-wasi/debug/automata.wasm")
+{:ok, module} = Wasmex.Module.compile(store, wasm_file)
+{:ok, pid} = Wasmex.start_link(%{store: store, module: module})
+{:ok, memory} = Wasmex.memory(pid)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:ok, #Wasmex.Memory<#Reference<0.1715306117.2113142786.261377>>}
+```
+
+```elixir
+Wasmex.Module.exports(module)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{
+  "__externref_drop_slice" => {:fn, [:i32, :i32], []},
+  "__externref_heap_live_count" => {:fn, [], [:i32]},
+  "__externref_table_alloc" => {:fn, [], [:i32]},
+  "__externref_table_dealloc" => {:fn, [:i32], []},
+  "__wbindgen_exn_store" => {:fn, [:i32], []},
+  "__wbindgen_free" => {:fn, [:i32, :i32, :i32], []},
+  "__wbindgen_malloc" => {:fn, [:i32, :i32], [:i32]},
+  "__wbindgen_realloc" => {:fn, [:i32, :i32, :i32, :i32], [:i32]},
+  "grep_file" => {:fn, [:i32, :i32, :i32, :i32], [:i64]},
+  "memory" => {:memory, %{minimum: 17, shared: false, memory64: false}}
+}
+```
+
+```elixir
+file = "./sample.txt"
+regex = "\"[^\"]*\""
+Wasmex.Memory.write_binary(store, memory, 0, file)
+Wasmex.Memory.write_binary(store, memory, String.length(file), regex)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+```elixir
+{:ok, [ptr]} =
+  Wasmex.call_function(pid, "grep_file", [
+    0,
+    String.length(file),
+    String.length(file),
+    String.length(regex)
+  ])
+
+start = ptr >>> 32 &&& 0xFFFFFFFF
+length = ptr &&& 0xFFFFFFFF
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+4
+```
+
+```elixir
+for i <- 0..(length - 1) do
+  <<length::little-signed-integer-size(32)>> =
+    Wasmex.Memory.read_binary(store, memory, start + i * 8, 4)
+
+  <<address::little-signed-integer-size(32)>> =
+    Wasmex.Memory.read_binary(store, memory, start + i * 8 + 4, 4)
+
+  Wasmex.Memory.read_string(store, memory, address, length)
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+["\"Esto es un texto entre comillas\"", "\"pero esto también es un texto entre comillas.\"",
+ "\"tercero\"", "\"este es el texto final, contiene números como 1 o 18 y emojis como 🙉\""]
+```

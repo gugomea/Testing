@@ -21,8 +21,6 @@ function reshape() {
 }
 
 function initEventos() {
-
-
     ////////////////////////////////////////////////
     const container = document.getElementById('main-container')!;
     const center = document.getElementById('center')!;
@@ -48,7 +46,6 @@ function initEventos() {
         automata.draw();
     });
     ////////////////////////////////////////////////
-
 
     let canvas = <HTMLCanvasElement> document.getElementById('canvas');
     let ctx = canvas.getContext('2d')!;

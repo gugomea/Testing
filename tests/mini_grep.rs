@@ -10,7 +10,7 @@ fn match_string_with_nfa() {
     let mut chars = input.chars().map(Interval::char).peekable();
 
     let expression = parse(exp).unwrap();
-    let mut automata = build(expression.clone());
+    let mut automata = build(expression);
     let mut result_strings: Vec<String> = vec![];
     while chars.peek().is_some() {
         automata.set_current(Some(HashSet::from([0])));
@@ -33,12 +33,13 @@ fn match_string_with_dfa() {
     let mut chars = input.chars().map(Interval::char).peekable();
 
     let expression = parse(exp).unwrap();
-    let nfa = build(expression.clone());
+    let nfa = build(expression);
     let mut automata = transformer::nfa_to_dfa(&nfa);
     let mut result_strings: Vec<String> = vec![];
     while chars.peek().is_some() {
         automata.set_current(Some(0));
         let Some(matching) = automata.matches(&mut chars) else { 
+            println!("{:#?}", automata);
             continue 
         };
         result_strings.push(matching.into_iter().map(|x| x.first).collect());

@@ -234,7 +234,7 @@ export class NFA_BUILDER {
                     }
                 }
             }
-            transition.set_pointer( m_h == 0 ? new Punto((from.pos().x + to.pos().x) / 2, from.pos().y + (30 + 15) ) :point);//radius + 15
+            transition.set_pointer( m_h == 0 ? new Punto((from.pos().x + to.pos().x) / 2, from.pos().y + (30 + 15) * (positive ? 1: -1) ) :point);//radius + 15
             automata.draw();
         }
     }
