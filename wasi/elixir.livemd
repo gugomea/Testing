@@ -22,7 +22,7 @@ Mix.install([
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, #Wasmex.StoreOrCaller<#Reference<0.1715306117.2113142786.261364>>}
+{:ok, #Wasmex.StoreOrCaller<#Reference<0.1491862122.1866989572.44070>>}
 ```
 
 ```elixir
@@ -35,7 +35,7 @@ wasm_file = File.read!("../target/wasm32-wasi/debug/automata.wasm")
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, #Wasmex.Memory<#Reference<0.1715306117.2113142786.261377>>}
+{:ok, #Wasmex.Memory<#Reference<0.1491862122.1866989572.44085>>}
 ```
 
 ```elixir
@@ -63,7 +63,7 @@ Wasmex.Module.exports(module)
 file = "./sample.txt"
 regex = "\"[^\"]*\""
 Wasmex.Memory.write_binary(store, memory, 0, file)
-Wasmex.Memory.write_binary(store, memory, String.length(file), regex)
+Wasmex.Memory.write_binary(store, memory, String.length(file) + 1, regex)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -77,12 +77,12 @@ Wasmex.Memory.write_binary(store, memory, String.length(file), regex)
   Wasmex.call_function(pid, "grep_file", [
     0,
     String.length(file),
-    String.length(file),
+    String.length(file) + 1,
     String.length(regex)
   ])
 
-start = ptr >>> 32 &&& 0xFFFFFFFF
-length = ptr &&& 0xFFFFFFFF
+start = Bitwise.&&&(Bitwise.>>>(ptr, 32), 0xFFFFFFFF)
+length = Bitwise.&&&(ptr, 0xFFFFFFFF)
 ```
 
 <!-- livebook:{"output":true} -->

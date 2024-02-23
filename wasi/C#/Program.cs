@@ -19,7 +19,7 @@ string f_address = "sample.txt";
 string regex = "\"[^\"]*\"";
 
 memory.WriteString(0, f_address);
-memory.WriteString(f_address.Length, regex);
+memory.WriteString(f_address.Length + 1, regex);
 var grep_file = instance.GetFunction<int, int, int, int, Int64>("grep_file");
 
 if (grep_file is null)
@@ -28,7 +28,7 @@ if (grep_file is null)
     return;
 }
 
-Int64 full_int64 = grep_file(0, f_address.Length, f_address.Length, regex.Length);
+Int64 full_int64 = grep_file(0, f_address.Length, f_address.Length + 1, regex.Length);
 int start = (int)((full_int64 >> 32) & 0xffffffff);
 int length= (int)(full_int64 & 0xffffffff);
 for(int i = 0; i < length; i++) {

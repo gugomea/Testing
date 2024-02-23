@@ -16,12 +16,12 @@ instance = linker.instantiate(store, module)
 exports = instance.exports(store)
 memory = exports['memory']
 
-input = "./sample.txt".encode()
+input = "sample.txt".encode()
 regex = "\"[^\"]*\"".encode()
 memory.write(store, input, 0)
-memory.write(store, regex, len(input))
+memory.write(store, regex, len(input) + 1)
 
-vector_string = exports['grep_file'](store, 0, len(input), len(input), len(regex))
+vector_string = exports['grep_file'](store, 0, len(input), len(input) + 1, len(regex))
 start = (vector_string >> 32) & 0xffffffff
 length = (vector_string) & 0xffffffff
 v = memory.read(store, start=start, stop=(start) + length * 8)
