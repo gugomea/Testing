@@ -2,6 +2,7 @@
 pub mod Frontend;
 pub mod Backend;
 
+use core::alloc;
 use std::collections::{HashMap, HashSet};
 
 use Backend::{intermediate_automata::IRAutoamta, gnfa::GNFA};
@@ -54,12 +55,18 @@ pub fn automata_to_regex(automata: JsValue) -> Result<JsValue, JsValue> {
 }
 
 #[no_mangle]
+pub fn alloc(len: i32) -> i32 {
+    unsafe {
+        let layout = std::alloc::Layout::from_size_align(len as usize, 1).unwrap();
+        std::alloc::alloc(layout) as i32
+    }
+}
+
+#[no_mangle]
 pub fn grep_file(f_address: i32, f_len: i32, exp_address: i32, exp_len: i32) -> i64 {
     let name_file = unsafe { String::from_raw_parts(f_address as *mut u8, f_len as usize, f_len as usize) };
-    //let string_file = std::fs::read_to_string(&name_file).unwrap();
-    let string_file = std::fs::read_to_string("./sample.txt").unwrap();
-    //let expression = unsafe { String::from_raw_parts(exp_address as *mut u8, exp_len as usize, exp_len as usize) };
-    let expression = "\"[^\"]*\"";
+    let string_file = std::fs::read_to_string(&name_file).unwrap();
+    let expression = unsafe { String::from_raw_parts(exp_address as *mut u8, exp_len as usize, exp_len as usize) };
     let mut chars = string_file.chars().map(Interval::char).peekable();
 
     let expression = parse(&expression).unwrap();

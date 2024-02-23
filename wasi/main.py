@@ -18,10 +18,12 @@ memory = exports['memory']
 
 input = "sample.txt".encode()
 regex = "\"[^\"]*\"".encode()
-memory.write(store, input, 0)
-memory.write(store, regex, len(input) + 1)
+input_address = exports['alloc'](store, len(input))
+regex_address = exports['alloc'](store, len(regex))
+memory.write(store, input, input_address)
+memory.write(store, regex, regex_address)
 
-vector_string = exports['grep_file'](store, 0, len(input), len(input) + 1, len(regex))
+vector_string = exports['grep_file'](store, input_address, len(input), regex_address, len(regex))
 start = (vector_string >> 32) & 0xffffffff
 length = (vector_string) & 0xffffffff
 v = memory.read(store, start=start, stop=(start) + length * 8)

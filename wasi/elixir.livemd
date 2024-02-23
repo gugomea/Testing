@@ -22,7 +22,7 @@ Mix.install([
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, #Wasmex.StoreOrCaller<#Reference<0.1491862122.1866989572.44070>>}
+{:ok, #Wasmex.StoreOrCaller<#Reference<0.774482462.2183135239.82196>>}
 ```
 
 ```elixir
@@ -35,7 +35,7 @@ wasm_file = File.read!("../target/wasm32-wasi/debug/automata.wasm")
 <!-- livebook:{"output":true} -->
 
 ```
-{:ok, #Wasmex.Memory<#Reference<0.1491862122.1866989572.44085>>}
+{:ok, #Wasmex.Memory<#Reference<0.774482462.2183135239.82237>>}
 ```
 
 ```elixir
@@ -54,6 +54,7 @@ Wasmex.Module.exports(module)
   "__wbindgen_free" => {:fn, [:i32, :i32, :i32], []},
   "__wbindgen_malloc" => {:fn, [:i32, :i32], [:i32]},
   "__wbindgen_realloc" => {:fn, [:i32, :i32, :i32, :i32], [:i32]},
+  "alloc" => {:fn, [:i32], [:i32]},
   "grep_file" => {:fn, [:i32, :i32, :i32, :i32], [:i64]},
   "memory" => {:memory, %{minimum: 17, shared: false, memory64: false}}
 }
@@ -62,8 +63,10 @@ Wasmex.Module.exports(module)
 ```elixir
 file = "./sample.txt"
 regex = "\"[^\"]*\""
-Wasmex.Memory.write_binary(store, memory, 0, file)
-Wasmex.Memory.write_binary(store, memory, String.length(file) + 1, regex)
+{:ok, [file_address]} = Wasmex.call_function(pid, "alloc", [String.length(file)])
+{:ok, [regex_address]} = Wasmex.call_function(pid, "alloc", [String.length(regex)])
+Wasmex.Memory.write_binary(store, memory, file_address, file)
+Wasmex.Memory.write_binary(store, memory, regex_address, regex)
 ```
 
 <!-- livebook:{"output":true} -->
@@ -75,9 +78,9 @@ Wasmex.Memory.write_binary(store, memory, String.length(file) + 1, regex)
 ```elixir
 {:ok, [ptr]} =
   Wasmex.call_function(pid, "grep_file", [
-    0,
+    file_address,
     String.length(file),
-    String.length(file) + 1,
+    regex_address,
     String.length(regex)
   ])
 

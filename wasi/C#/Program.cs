@@ -15,20 +15,17 @@ var instance = linker.Instantiate(store, module);
 var memory = instance.GetMemory("memory");
 if (memory is null) { return; }
 
-string f_address = "sample.txt";
+var alloc = instance.GetFunction<int, int>("alloc")!;
+var grep_file = instance.GetFunction<int, int, int, int, Int64>("grep_file")!;
+
+string file = "src/lib.rs";
 string regex = "\"[^\"]*\"";
+int file_address = alloc(file.Length);
+int regex_address = alloc(file.Length);
+memory.WriteString(file_address, file);
+memory.WriteString(regex_address, regex);
 
-memory.WriteString(0, f_address);
-memory.WriteString(f_address.Length + 1, regex);
-var grep_file = instance.GetFunction<int, int, int, int, Int64>("grep_file");
-
-if (grep_file is null)
-{
-	Console.WriteLine("nop");
-    return;
-}
-
-Int64 full_int64 = grep_file(0, f_address.Length, f_address.Length + 1, regex.Length);
+Int64 full_int64 = grep_file(file_address, file.Length, regex_address, regex.Length);
 int start = (int)((full_int64 >> 32) & 0xffffffff);
 int length= (int)(full_int64 & 0xffffffff);
 for(int i = 0; i < length; i++) {

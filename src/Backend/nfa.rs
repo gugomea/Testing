@@ -25,33 +25,6 @@ impl Automata<Interval, HashSet<usize>> for NFA {
         if result.is_empty() { None } else { Some(result) }
     }
 
-    fn matches(&mut self, input: &mut Peekable<impl Iterator<Item = Interval>>) -> Option<Vec<Interval>> {
-        let (mut acc, mut maybe) = (vec![], vec![]);
-        //skip not matching characters
-        while let Some(&n) = input.peek() {
-            if self.next(n).is_some() {
-                break;
-            }
-            input.next();
-        }
-        //take longest matching string
-        while let Some(&n) = input.peek() {
-            let current_states = self.next(n);
-            //     error state
-            if current_states.is_none() {
-                self.current = None;
-                return if !acc.is_empty() { Some(acc) } else { None };
-            }
-            maybe.push(n);
-            self.current = current_states;
-            if self.is_final() {
-                acc.append(&mut maybe);
-            }
-            input.next();
-        }
-        return if !acc.is_empty() { Some(acc) } else { None };
-    }
-
     fn is_error(&self) -> bool {
         self.current.is_none()
     }
