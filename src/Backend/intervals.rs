@@ -1,7 +1,9 @@
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display, hash::Hash};
 
 use crate::Frontend::tokens::Literal;
 use serde::{Serialize, Deserialize};
+
+use super::automata;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct Interval {
@@ -71,17 +73,33 @@ impl Interval {
     }
 
     pub fn unique(intervals: impl Iterator<Item = Interval>) -> impl Iterator<Item = Interval> {
+        let mut letters = HashSet::new();
         let mut intervals: Vec<u32> = intervals
-            .map(|x| [x.first as u32, x.last as u32])
-            .flatten().collect();
+            .flat_map(|x| {
+                if x.first == x.last { letters.insert(x.first); }
+                [x.first as u32, x.last as u32]
+            })
+            .collect();
         intervals.extend([0x0, 0x10ffff]);
         intervals.sort();
         intervals.dedup();
 
-        let mut result = Vec::with_capacity(intervals.len() - 1);//safe because there is at least two elements
+        let mut result = vec![];
         for w in intervals.windows(2) {
-            let first = char::from_u32(w[0]).expect("Invalid start");
-            let last = char::from_u32(w[1] - 1).expect("Invalid end");
+            let (mut fu, lu) = (w[0], w[1]);
+            let f = char::from_u32(fu).unwrap();
+            if letters.contains(&f) {
+                result.push(Interval::char(f));
+                fu += 1;
+            }
+            let Some(first) = char::from_u32(fu) else { continue };
+            let Some(last) = char::from_u32(lu-1) else { continue };
+            if first > last { 
+                continue;
+            }
+            if first == last { 
+                letters.insert(first);
+            }
             result.push(Interval::new(first, last));
         }
         result.last_mut().unwrap().last = char::MAX;
@@ -97,4 +115,41 @@ impl From<Literal> for Interval {
             Literal::range(rng) => Interval { first: *rng.start(), last: *rng.end() },
         }
     }
+}
+
+#[test]
+fn simple_alphabet() {
+    let minus_one = |ch: char| char::from_u32(ch as u32 -1).unwrap();
+    use crate::Frontend::{tokens::*, parser::parse};
+    let input = "[a-z]";
+    let Expression::any(intervals) = parse(input).unwrap() else { panic!("error while parsing {}", input) };
+    let intervals = intervals.into_iter().map(Interval::from);
+    assert_eq!(
+        Interval::unique(intervals.into_iter()).collect::<Vec<_>>(),
+        [Interval::new('\u{0}', minus_one('a')), Interval::new('a', minus_one('z')), Interval::new('z', char::MAX)],
+        "Simple alphabet",
+    );
+}
+
+#[test]
+fn mixed_alphabet() {
+    let plus_one = |ch: char| char::from_u32(ch as u32 + 1).unwrap();
+    let minus_one = |ch: char| char::from_u32(ch as u32 -1).unwrap();
+    use crate::Frontend::{tokens::*, parser::parse};
+    let input = "[a-zazh]";
+    let Expression::any(intervals) = parse(input).unwrap() else { panic!("error while parsing {}", input) };
+    let intervals = intervals.into_iter().map(Interval::from);
+    assert_eq!(
+        Interval::unique(intervals.into_iter()).collect::<Vec<_>>(),
+        [
+            Interval::new('\u{0}', minus_one('a')),
+            Interval::char('a'),
+            Interval::new(plus_one('a'), minus_one('h')),
+            Interval::char('h'),
+            Interval::new(plus_one('h'), minus_one('z')),
+            Interval::char('z'),
+            Interval::new(plus_one('z'), char::MAX),
+        ],
+        "Simple alphabet",
+    );
 }
