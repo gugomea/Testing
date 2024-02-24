@@ -113,7 +113,7 @@ impl GNFA {
     }
 }
 
-pub fn nfa_to_regex(gnfa: &GNFA) -> Expression {
+pub fn nfa_to_regex(gnfa: &GNFA) -> Option<Expression> {
         for i in 1..gnfa.n_states - 1 {
             println!("ripping state {i}...");
             gnfa.rip_state(i);
@@ -121,5 +121,5 @@ pub fn nfa_to_regex(gnfa: &GNFA) -> Expression {
                 .iter()
                 .for_each(|(k, v)| println!("{:?} => {}", k , v));
         }
-        return gnfa.flow.borrow().get(&(0, gnfa.n_states - 1)).unwrap().clone()
+        return gnfa.flow.borrow().get(&(0, gnfa.n_states - 1)).cloned()
 }

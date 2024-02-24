@@ -70,8 +70,22 @@ impl Interval {
         }
     }
 
-    pub fn unique(_intervals: impl Iterator<Item = Interval>) -> impl Iterator<Item = Interval> {
-        vec![].into_iter()
+    pub fn unique(intervals: impl Iterator<Item = Interval>) -> impl Iterator<Item = Interval> {
+        let mut intervals: Vec<u32> = intervals
+            .map(|x| [x.first as u32, x.last as u32])
+            .flatten().collect();
+        intervals.extend([0x0, 0x10ffff]);
+        intervals.sort();
+        intervals.dedup();
+
+        let mut result = Vec::with_capacity(intervals.len() - 1);//safe because there is at least two elements
+        for w in intervals.windows(2) {
+            let first = char::from_u32(w[0]).expect("Invalid start");
+            let last = char::from_u32(w[1] - 1).expect("Invalid end");
+            result.push(Interval::new(first, last));
+        }
+        result.last_mut().unwrap().last = char::MAX;
+        return result.into_iter();
     }
 }
 

@@ -39,7 +39,6 @@ fn match_string_with_dfa() {
     while chars.peek().is_some() {
         automata.set_current(Some(0));
         let Some(matching) = automata.matches(&mut chars) else { 
-            println!("{:#?}", automata);
             continue 
         };
         result_strings.push(matching.into_iter().map(|x| x.first).collect());

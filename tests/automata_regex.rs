@@ -10,7 +10,7 @@ fn groups_with_quantifiers() {
     let (start, end) = (NFA::default(), NFA::default());
     let nfa = NFA::concat_all([start, nfa, end].into_iter());
     let gnfa = GNFA::from_nfa(&nfa);
-    let generated_regex = format!("{}", nfa_to_regex(&gnfa));
+    let generated_regex = format!("{}", nfa_to_regex(&gnfa).unwrap());
     assert_eq!("(ε|a|b)((ε|a|b))*", generated_regex);
 }
 
@@ -24,7 +24,7 @@ fn simple_concatenation() {
     let (start, end) = (NFA::default(), NFA::default());
     let nfa = NFA::concat_all([start, nfa, end].into_iter());
     let gnfa = GNFA::from_nfa(&nfa);
-    let generated_regex = format!("{}", nfa_to_regex(&gnfa));
+    let generated_regex = format!("{}", nfa_to_regex(&gnfa).unwrap());
     assert_eq!("Hello my name is Guillermo", generated_regex);
 }
 
@@ -38,7 +38,7 @@ fn ignore_simple_groups() {
     let (start, end) = (NFA::default(), NFA::default());
     let nfa = NFA::concat_all([start, nfa, end].into_iter());
     let gnfa = GNFA::from_nfa(&nfa);
-    let generated_regex = format!("{}", nfa_to_regex(&gnfa));
+    let generated_regex = format!("{}", nfa_to_regex(&gnfa).unwrap());
     assert_eq!("one two three", generated_regex);
 }
 
@@ -52,6 +52,6 @@ fn union() {
     let (start, end) = (NFA::default(), NFA::default());
     let nfa = NFA::concat_all([start, nfa, end].into_iter());
     let gnfa = GNFA::from_nfa(&nfa);
-    let generated_regex = format!("{}", nfa_to_regex(&gnfa));
+    let generated_regex = format!("{}", nfa_to_regex(&gnfa).unwrap());
     assert_eq!("(ab|(cde|f))", generated_regex);
 }

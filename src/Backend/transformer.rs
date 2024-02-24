@@ -76,9 +76,8 @@ pub fn nfa_to_dfa(nfa: &NFA) -> DFA {
     // if nfa.n_states > 0 { unimplemented!("Falta implementar que los intervalos sean todos disjuntos"); }
 
     let mut D = vec![ComplexState::new([vec![0], empty_transitions(nfa, 0)].concat())];
-    //let Σ = nfa.alphabet();
-    let Σ = ('\u{0}'..=char::MAX).map(Interval::char).collect::<Vec<_>>();
-    //println!("alphabet: {:?}", Σ);
+    let Σ = nfa.alphabet();
+    println!("alphabet: {:?}", Σ);
     let mut δd = vec![Table::default()];
 
     let mut nfa_to_dfa_states: HashMap<ComplexState, usize> = HashMap::new();

@@ -2,12 +2,10 @@
 pub mod Frontend;
 pub mod Backend;
 
-use core::alloc;
 use std::collections::{HashMap, HashSet};
 
-use Backend::{intermediate_automata::IRAutoamta, gnfa::GNFA};
+use Backend::{gnfa::{nfa_to_regex, GNFA}, intermediate_automata::IRAutoamta};
 use wasm_bindgen::prelude::*;
-use Frontend::tokens::Expression;
 
 use crate::{Backend::{automata::Automata, build::build, intervals::Interval}, Frontend::parser::parse};
 
@@ -25,7 +23,6 @@ pub fn build_automata(val: JsValue) -> Result<JsValue, JsValue> {
         Err(er) => Ok(serde_wasm_bindgen::to_value(&er)?),
     };
 
-    println!("{:#?}", result);
     return result;
 }
 
@@ -34,17 +31,7 @@ pub fn automata_to_regex(automata: JsValue) -> Result<JsValue, JsValue> {
     let transition_map: HashMap<(usize, usize), Vec<String>> = serde_wasm_bindgen::from_value(automata)?;
     if let Ok(gnfa) = GNFA::try_from(IRAutoamta { transition_map }) {
         let n = gnfa.n_states;
-        if n < 2 { return Err("not enough states".into()); }
-        //let result_gnfa = format!("{:#?}", gnfa);
-        for i in 1..n - 1 {
-            println!("ripping state {i}...");
-            gnfa.rip_state(i);
-            gnfa.flow.borrow()
-                .iter()
-                .for_each(|(k, v)| println!("{:?} => {}", k , v));
-        }
-
-        let result = match gnfa.flow.borrow().get(&(0, n - 1)) {
+        let result = match nfa_to_regex(&gnfa) {
             Some(exp) => format!("{:?} => {:#?}\n{}", (0, n-1), exp, exp),
             None => format!("Invalid Automata"),
         };

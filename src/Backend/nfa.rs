@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Debug, iter::Peekable};
+use std::{collections::HashSet, fmt::Debug};
 use crate::Backend::intervals::Interval;
 use serde::{Serialize, Deserialize};
 use super::automata::{Automata, Table, Transition};
@@ -88,11 +88,11 @@ impl NFA {
     }
 
     pub fn alphabet(&self) -> Vec<Interval> {
-        self.transition_function
-            .iter()
+        Interval::unique(
+            self.transition_function.iter()
             .map(|ei| ei.transitions.iter().map(|x| x.start))
             .flatten()
-            .collect()
+        ).collect()
     }
 
     pub fn simple(it: Interval) -> Self {
