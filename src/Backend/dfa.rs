@@ -1,21 +1,20 @@
 use serde::{Serialize, Deserialize};
-use super::automata::{Automata, Table};
-use super::intervals::Interval;
+use super::automata::{Alphabet, Automata, Table};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DFA {
+pub struct DFA<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>> {
     pub n_states: usize,
     pub current: Option<usize>,
     pub final_states: Vec<bool>,
-    pub transition_function: Vec<Table<Interval, usize>>,
+    pub transition_function: Vec<Table<T, usize>>,
 }
 
-impl Automata<Interval, usize> for DFA {
+impl<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>> Automata<T, usize> for DFA<T> {
     fn set_current(&mut self, curr: Option<usize>) {
         self.current = curr;
     }
 
-    fn next(&self, input: Interval) -> Option<usize> {
+    fn next(&self, input: T) -> Option<usize> {
         let Some(current) = self.current else { return None };
         self.transition_function[current].get(input).copied()
     }

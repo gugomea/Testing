@@ -1,8 +1,13 @@
 use std::{fmt::Debug, iter::Peekable};
 use serde::{Serialize, Deserialize};
 
+pub trait Alphabet<T: PartialOrd + Eq + PartialEq + Clone + Copy> {
+    fn unique(intervals: impl Iterator<Item = T>) -> impl Iterator<Item = T>;
+    fn negation<G>(element: G) -> impl Iterator<Item = T> where T: From<G>;
+}
+
 pub trait Automata<Event, State>
-where Event: PartialEq + Eq + PartialOrd + Debug + Clone + Copy,
+where Event: PartialEq + Eq + PartialOrd + Clone + Copy + Alphabet<Event>
 {
     fn is_final(&self) -> bool;
     fn is_error(&self) -> bool;
@@ -32,8 +37,8 @@ where Event: PartialEq + Eq + PartialOrd + Debug + Clone + Copy,
             }
             input.next();
         }
-        return if !acc.is_empty() { Some(acc) } else { None };
 
+        if !acc.is_empty() { Some(acc) } else { None }
     }
 }
 

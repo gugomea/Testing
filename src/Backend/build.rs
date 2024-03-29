@@ -1,12 +1,14 @@
-use crate::Backend::{nfa::NFA, intervals::Interval};
+use crate::Backend::nfa::NFA;
 
-use crate::Frontend::tokens::Expression;
+use crate::Frontend::tokens::{Expression, Literal};
 
-pub fn build(input: Expression) -> NFA {
+use super::automata::Alphabet;
+
+pub fn build<T: From<Literal> + Alphabet<T> + Copy + Clone + Eq + PartialEq + PartialOrd>(input: Expression) -> NFA<T> {
     match input {
         Expression::l(literal) => NFA::simple(literal.into()),
         Expression::any(literals)=> NFA::from_range(literals.into_iter().map(|x| x.into())),
-        Expression::anyBut(literals)=> NFA::from_range(literals.into_iter().flat_map(Interval::reverse)),
+        Expression::anyBut(literals)=> NFA::from_range(literals.into_iter().flat_map(T::negation)),
         Expression::optional(exp)=> NFA::optional(build(*exp)),
         Expression::one_or_more(exp)=> NFA::one_or_more(build(*exp)),
         Expression::zero_or_more(exp)=> NFA::zero_or_more(build(*exp)),
@@ -20,9 +22,10 @@ pub fn build(input: Expression) -> NFA {
 #[test]
 fn build_literal() {
     use crate::Frontend::*;
+    use crate::Backend::intervals::Interval;
     let input = "🙉";
     let parsed_expression = parser::parse(input).ok().unwrap();
-    let built_automata = build(parsed_expression);
+    let built_automata: NFA<Interval<()>> = build(parsed_expression);
     let automata = NFA::simple(Interval::char('🙉'));
     assert_eq!(built_automata, automata, "literal autoamta");
 }
@@ -30,9 +33,10 @@ fn build_literal() {
 #[test]
 fn build_ranges() {
     use crate::Frontend::*;
+    use crate::Backend::intervals::Interval;
     let input = "[a-zA-ZñÑ. -]";
     let parsed_expression = parser::parse(input).ok().unwrap();
-    let built_automata = build(parsed_expression);
+    let built_automata: NFA<Interval<()>> = build(parsed_expression);
     let automata = NFA::from_range([
         Interval::new('a', 'z'), Interval::new('A', 'Z'), Interval::char('ñ'), 
         Interval::char('Ñ'), Interval::char('.'), Interval::char('-'), Interval::char(' ')
@@ -43,9 +47,10 @@ fn build_ranges() {
 #[test]
 fn build_quantifiers() {
     use crate::Frontend::*;
+    use crate::Backend::intervals::Interval;
     let input = "a*b?c+";
     let parsed_expression = parser::parse(input).ok().unwrap();
-    let built_automata = build(parsed_expression);
+    let built_automata: NFA<Interval<()>> = build(parsed_expression);
     let automata = NFA::concat_all_directly([
         NFA::zero_or_more(NFA::simple(Interval::char('a'))),
         NFA::optional(NFA::simple(Interval::char('b'))),
@@ -57,9 +62,10 @@ fn build_quantifiers() {
 #[test]
 fn build_union() {
     use crate::Frontend::*;
+    use crate::Backend::intervals::Interval;
     let input = "a*b?|c+d|ef";
     let parsed_expression = parser::parse(input).ok().unwrap();
-    let built_automata = build(parsed_expression);
+    let built_automata: NFA<Interval<()>> = build(parsed_expression);
     let automata = NFA::union(vec![
         NFA::concat_all_directly([NFA::zero_or_more(NFA::simple(Interval::char('a'))), NFA::optional(NFA::simple(Interval::char('b')))].into_iter()),
         NFA::concat_all_directly([NFA::one_or_more(NFA::simple(Interval::char('c'))), NFA::simple(Interval::char('d'))].into_iter()),
@@ -71,9 +77,10 @@ fn build_union() {
 #[test]
 fn build_with_groups() {
     use crate::Frontend::*;
+    use crate::Backend::intervals::Interval;
     let input = "(a|bc)*|de";
     let parsed_expression = parser::parse(input).ok().unwrap();
-    let built_automata = build(parsed_expression);
+    let built_automata: NFA<Interval<()>> = build(parsed_expression);
     let automata = NFA::union(vec![
         NFA::zero_or_more(
             NFA::union(vec![

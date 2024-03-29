@@ -1,29 +1,33 @@
-use std::{collections::HashSet, fmt::Display, hash::Hash};
+use std::{collections::HashSet, fmt::Display};
 
 use crate::Frontend::tokens::Literal;
 use serde::{Serialize, Deserialize};
 
-use super::automata;
+use super::automata::Alphabet;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
-pub struct Interval {
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Interval<Ctx> {
     pub first: char,
     pub last: char,
+    pub ctx: Ctx,
 }
 
-impl PartialOrd for Interval {
-    fn lt(&self, other: &Self) -> bool {
-        self.first > other.first && self.last <other.last
-    }
-    fn le(&self, other: &Self) -> bool {
-        self.first >= other.first && self.last <= other.last
-    }
-    fn gt(&self, other: &Self) -> bool {
-        self.first < other.first && self.last > other.last
-    }
-    fn ge(&self, other: &Self) -> bool {
-        self.first <= other.first && self.last >= other.last
-    }
+impl<T> Eq for Interval<T> { }
+impl<T> PartialEq for Interval<T> {
+    fn eq(&self, other: &Self) -> bool { self.first == other.first && self.last == other.last }
+
+    fn ne(&self, other: &Self) -> bool { !(self == other) }
+}
+
+impl<T> PartialOrd for Interval<T> {
+    fn lt(&self, other: &Self) -> bool { self.first > other.first && self.last < other.last }
+
+    fn le(&self, other: &Self) -> bool { self.first >= other.first && self.last <= other.last }
+
+    fn gt(&self, other: &Self) -> bool { self.first < other.first && self.last > other.last }
+
+    fn ge(&self, other: &Self) -> bool { self.first <= other.first && self.last >= other.last }
+
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         if self < other { Some(std::cmp::Ordering::Less) }
         else if self > other { Some(std::cmp::Ordering::Greater) }
@@ -32,7 +36,7 @@ impl PartialOrd for Interval {
 }
 
 
-impl Display for Interval {
+impl<Ctx> Display for Interval<Ctx> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.first == self.last {
             write!(f, "{}", self.first)
@@ -42,37 +46,8 @@ impl Display for Interval {
     }
 }
 
-
-impl Interval {
-    pub fn char(ch: char) -> Self {
-        Interval { first: ch, last: ch }
-    }
-
-    pub fn new(first: char, last: char) -> Self {
-        Self { first, last }
-    }
-
-    pub fn reverse(literal: Literal) -> impl Iterator<Item = Interval> {
-        let literal: Interval = literal.into();
-        let (first, last): (u32, u32) = (literal.first.into(), literal.last.into());
-        let (f1, l1) = ('\u{0}', char::from_u32(first - 1));
-        let (f2, l2) = (char::from_u32(last + 1), char::MAX);
-        match (l1, f2) {
-            (Some(l1), Some(f2)) => vec![Interval::new(f1, l1), Interval::new(f2, l2)].into_iter(),
-            (Some(l1), None) => vec![Interval::new(f1, l1)].into_iter(),
-            (None, Some(f2)) => vec![Interval::new(f2, l2)].into_iter(),
-            _ => vec![].into_iter(),
-        }
-    }
-
-    pub fn exp(&self) -> Literal {
-        match self.first == self.last {
-            true => Literal::atom(self.first),
-            false => Literal::range(self.first..=self.last),
-        }
-    }
-
-    pub fn unique(intervals: impl Iterator<Item = Interval>) -> impl Iterator<Item = Interval> {
+impl<Ctx: Default + Copy + Eq + PartialEq> Alphabet<Interval<Ctx>> for Interval<Ctx> {
+    fn unique(intervals: impl Iterator<Item = Self>) -> impl Iterator<Item = Self> {
         let mut letters = HashSet::new();
         let mut intervals: Vec<u32> = intervals
             .flat_map(|x| {
@@ -103,16 +78,47 @@ impl Interval {
             result.push(Interval::new(first, last));
         }
         result.last_mut().unwrap().last = char::MAX;
-        return result.into_iter();
+        result.into_iter()
+    }
+
+    fn negation<G>(literal: G) -> impl Iterator<Item = Self> where Self: From<G> {
+        let literal: Interval<_> = Interval::from(literal);
+        let (first, last): (u32, u32) = (literal.first.into(), literal.last.into());
+        let (f1, l1) = ('\u{0}', char::from_u32(first - 1));
+        let (f2, l2) = (char::from_u32(last + 1), char::MAX);
+        match (l1, f2) {
+            (Some(l1), Some(f2)) => vec![Interval::new(f1, l1), Interval::new(f2, l2)].into_iter(),
+            (Some(l1), None) => vec![Interval::new(f1, l1)].into_iter(),
+            (None, Some(f2)) => vec![Interval::new(f2, l2)].into_iter(),
+            _ => vec![].into_iter(),
+        }
     }
 }
 
-impl From<Literal> for Interval {
+
+impl<Ctx: Default> Interval<Ctx> {
+    pub fn char(ch: char) -> Self {
+        Interval { first: ch, last: ch, ctx: Ctx::default() }
+    }
+
+    pub fn new(first: char, last: char) -> Self {
+        Interval { first, last, ctx: Ctx::default() }
+    }
+
+    pub fn exp(&self) -> Literal {
+        match self.first == self.last {
+            true => Literal::atom(self.first),
+            false => Literal::range(self.first..=self.last),
+        }
+    }
+}
+
+impl<Ctx: Default> From<Literal> for Interval<Ctx> {
     fn from(value: Literal) -> Self {
         match value {
-            Literal::atom(ch) => Interval { first: ch, last: ch },
-            Literal::anyLiteral => Interval { first: '\u{0}', last: char::MAX },
-            Literal::range(rng) => Interval { first: *rng.start(), last: *rng.end() },
+            Literal::atom(ch) => Interval { first: ch, last: ch, ctx: Ctx::default() },
+            Literal::anyLiteral => Interval { first: '\u{0}', last: char::MAX, ctx: Ctx::default() },
+            Literal::range(rng) => Interval { first: *rng.start(), last: *rng.end(), ctx: Ctx::default() },
         }
     }
 }
@@ -126,7 +132,7 @@ fn simple_alphabet() {
     let intervals = intervals.into_iter().map(Interval::from);
     assert_eq!(
         Interval::unique(intervals.into_iter()).collect::<Vec<_>>(),
-        [Interval::new('\u{0}', minus_one('a')), Interval::new('a', minus_one('z')), Interval::new('z', char::MAX)],
+        [Interval::<()>::new('\u{0}', minus_one('a')), Interval::new('a', minus_one('z')), Interval::new('z', char::MAX)],
         "Simple alphabet",
     );
 }
@@ -142,13 +148,13 @@ fn mixed_alphabet() {
     assert_eq!(
         Interval::unique(intervals.into_iter()).collect::<Vec<_>>(),
         [
-            Interval::new('\u{0}', minus_one('a')),
-            Interval::char('a'),
-            Interval::new(plus_one('a'), minus_one('h')),
-            Interval::char('h'),
-            Interval::new(plus_one('h'), minus_one('z')),
-            Interval::char('z'),
-            Interval::new(plus_one('z'), char::MAX),
+            Interval::<()>::new('\u{0}', minus_one('a')),
+            Interval::<()>::char('a'),
+            Interval::<()>::new(plus_one('a'), minus_one('h')),
+            Interval::<()>::char('h'),
+            Interval::<()>::new(plus_one('h'), minus_one('z')),
+            Interval::<()>::char('z'),
+            Interval::<()>::new(plus_one('z'), char::MAX),
         ],
         "Simple alphabet",
     );

@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::{HashMap, HashSet}, ops::Deref};
 use serde::{Serialize, Deserialize};
 use crate::Frontend::{tokens::Expression, parser::parse, error::ParsingError};
-use super::{nfa::NFA, intermediate_automata::IRAutoamta};
+use super::{intermediate_automata::IRAutoamta, intervals::Interval, nfa::NFA};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GNFA {
@@ -39,13 +39,13 @@ impl TryFrom<IRAutoamta> for GNFA {
             current: 0,
             flow: RefCell::new(flow),
             ripped: RefCell::new(HashSet::new()),
-        })
+        });
     }
 }
 
 impl GNFA {
 
-    pub fn from_nfa(nfa: &NFA) -> Self {
+    pub fn from_nfa(nfa: &NFA<Interval<()>>) -> Self {
         let n_states = nfa.n_states;
 
         let mut flow: HashMap<(usize, usize), Expression> = HashMap::new();
@@ -121,5 +121,5 @@ pub fn nfa_to_regex(gnfa: &GNFA) -> Option<Expression> {
                 .iter()
                 .for_each(|(k, v)| println!("{:?} => {}", k , v));
         }
-        return gnfa.flow.borrow().get(&(0, gnfa.n_states - 1)).cloned()
+        return gnfa.flow.borrow().get(&(0, gnfa.n_states - 1)).cloned();
 }

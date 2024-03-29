@@ -1,6 +1,6 @@
 use std::{hash::{Hash, Hasher}, collections::{hash_map::DefaultHasher, HashMap}};
 
-use super::{nfa::NFA, dfa::DFA, intervals::Interval, automata::Table};
+use super::{automata::{Alphabet, Table}, dfa::DFA, nfa::NFA};
 
 //If any of the ComplexState(our simple states on the dfa) has a
 //state that is final on the nfa, or have empty transition to 
@@ -13,7 +13,7 @@ use super::{nfa::NFA, dfa::DFA, intervals::Interval, automata::Table};
 // start                        end
 //then the states containging q0, have to be final, since there is a chain, of empty
 //transitions that lead to a final state.
-fn empty_transitions(nfa: &NFA, state: isize) -> Vec<isize> {
+fn empty_transitions<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>>(nfa: &NFA<T>, state: isize) -> Vec<isize> {
     let mut stack = vec![state];
     let mut visited: Vec<isize> = vec![];
     let mut result = vec![];
@@ -32,7 +32,7 @@ fn empty_transitions(nfa: &NFA, state: isize) -> Vec<isize> {
     return result;
 }
 
-fn δn(nfa: &NFA, L: &ComplexState, a: Interval) -> Option<ComplexState> {
+fn δn<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>>(nfa: &NFA<T>, L: &ComplexState, a: T) -> Option<ComplexState> {
     let from_letter = L.states
         .iter()
         .filter_map(|state| unsafe {
@@ -72,12 +72,11 @@ fn δn(nfa: &NFA, L: &ComplexState, a: Interval) -> Option<ComplexState> {
 //          end 
 //     end
 
-pub fn nfa_to_dfa(nfa: &NFA) -> DFA {
+pub fn nfa_to_dfa<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>>(nfa: &NFA<T>) -> DFA<T> {
     // if nfa.n_states > 0 { unimplemented!("Falta implementar que los intervalos sean todos disjuntos"); }
 
     let mut D = vec![ComplexState::new([vec![0], empty_transitions(nfa, 0)].concat())];
     let Σ = nfa.alphabet();
-    println!("alphabet: {:?}", Σ);
     let mut δd = vec![Table::default()];
 
     let mut nfa_to_dfa_states: HashMap<ComplexState, usize> = HashMap::new();

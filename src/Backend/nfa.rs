@@ -1,22 +1,21 @@
 use std::{collections::HashSet, fmt::Debug};
-use crate::Backend::intervals::Interval;
 use serde::{Serialize, Deserialize};
-use super::automata::{Automata, Table, Transition};
+use super::automata::{Alphabet, Automata, Table, Transition};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct NFA {
+pub struct NFA<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>> {
     pub n_states: usize,
     pub current: Option<HashSet<usize>>,
     pub empty_transitions: Vec<Vec<isize>>,
-    pub transition_function: Vec<Table<Interval, Vec<isize>>>,
+    pub transition_function: Vec<Table<T, Vec<isize>>>,
 }
 
-impl Automata<Interval, HashSet<usize>> for NFA {
+impl<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>> Automata<T, HashSet<usize>> for NFA<T> {
     fn set_current(&mut self, curr: Option<HashSet<usize>>) {
         self.current = curr;
     }
 
-    fn next(&self, input: Interval) -> Option<HashSet<usize>> {
+    fn next(&self, input: T) -> Option<HashSet<usize>> {
         let Some(current) = &self.current else {return None};
         let result: HashSet<usize> = current
             .iter()
@@ -35,7 +34,7 @@ impl Automata<Interval, HashSet<usize>> for NFA {
     }
 }
 
-impl Default for NFA {
+impl<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>> Default for NFA<T> {
     fn default() -> Self {
         Self {
             n_states: 1,
@@ -46,9 +45,9 @@ impl Default for NFA {
     }
 }
 
-impl NFA {
+impl<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>> NFA<T> {
 
-    pub fn tf(&self, state: usize, input: Interval) -> HashSet<usize> {
+    pub fn tf(&self, state: usize, input: T) -> HashSet<usize> {
         let normalize = |a: isize| (state as isize + a) as usize;
         let from_empty = self.empty_transitions[state].clone().into_iter().map(normalize).chain([state]);
         //closure of the set of { 'state' + "states through the empty transitions from 'state'" }
@@ -79,7 +78,7 @@ impl NFA {
         return result;
     }
 
-    pub fn is_simple(&self) -> Option<Interval>{
+    pub fn is_simple(&self) -> Option<T>{
         let tf = &self.transition_function[0];
         let leads_to_one_state = tf.transitions.len() == 1 && tf.transitions[0].end.len() == 1;
         if !leads_to_one_state { return None; }
@@ -87,15 +86,15 @@ impl NFA {
         return Some(tf.transitions[0].start);
     }
 
-    pub fn alphabet(&self) -> Vec<Interval> {
-        Interval::unique(
+    pub fn alphabet(&self) -> Vec<T> {
+        T::unique(
             self.transition_function.iter()
             .map(|ei| ei.transitions.iter().map(|x| x.start))
             .flatten()
         ).collect()
     }
 
-    pub fn simple(it: Interval) -> Self {
+    pub fn simple(it: T) -> Self {
         let transitions = vec![Transition::new(it, vec![1isize])];
         let table = Table { transitions };
         Self {
@@ -107,7 +106,7 @@ impl NFA {
         }
     }
 
-    pub fn from_range(intervals: impl Iterator<Item = Interval>) -> Self {
+    pub fn from_range(intervals: impl Iterator<Item = T>) -> Self {
         let transitions = intervals
             .map(|it| Transition::new(it, vec![1isize]))
             .collect();
@@ -133,7 +132,7 @@ impl NFA {
         }
     }
 
-    pub fn concat_directly(nfa1: Self, nfa2: Self, interval: Interval) -> Self {
+    pub fn concat_directly(nfa1: Self, nfa2: Self, interval: T) -> Self {
         let (n, m) = (nfa1.n_states, nfa2.n_states);
         let mut tf = [nfa1.transition_function, nfa2.transition_function[1..].to_vec()].concat();
         let last = tf.get_mut(n - 1).unwrap();
@@ -244,7 +243,7 @@ impl NFA {
         self.empty_transitions.push(vec![]);
     }
 
-    pub fn optional(mut nfa: NFA) -> Self {
+    pub fn optional(mut nfa: Self) -> Self {
         let n = nfa.n_states as isize;
         nfa.empty_transitions[0].push(n - 1);
         //IMPORTANT
@@ -253,7 +252,7 @@ impl NFA {
         nfa
     }
 
-    pub fn one_or_more(mut nfa: NFA) -> Self {
+    pub fn one_or_more(mut nfa: Self) -> Self {
         let n = nfa.n_states;
         nfa.empty_transitions[n - 1].push(-(n as isize) + 1);
         //IMPORTANT
@@ -262,7 +261,7 @@ impl NFA {
         nfa
     }
 
-    pub fn zero_or_more(mut nfa: NFA) -> Self {
+    pub fn zero_or_more(mut nfa: Self) -> Self {
         let n = nfa.n_states;
         nfa.empty_transitions[0].push(n as isize - 1);
         nfa.empty_transitions[n - 1].push(-(n as isize) + 1);
@@ -277,8 +276,9 @@ impl NFA {
 #[cfg(test)]
 mod unit_test {
     use super::*;
+    use crate::Backend::intervals::Interval;
 
-    fn create (ch: char) -> NFA {
+    fn create(ch: char) -> NFA<Interval<()>> {
         let mut trs = Table::default();
         trs.transitions.push(Transition::new(Interval::char(ch), vec![1]));
         NFA {

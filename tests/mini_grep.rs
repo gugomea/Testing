@@ -7,7 +7,7 @@ use std::fs::read_to_string;
 fn match_string_with_nfa() {
     let input = read_to_string("sample.txt").unwrap();
     let exp = "\"[^\"]*\"";
-    let mut chars = input.chars().map(Interval::char).peekable();
+    let mut chars = input.chars().map(Interval::<()>::char).peekable();
 
     let expression = parse(exp).unwrap();
     let mut automata = build(expression);
@@ -30,7 +30,7 @@ fn match_string_with_nfa() {
 fn match_string_with_dfa() {
     let input = read_to_string("sample.txt").unwrap();
     let exp = "\"[^\"]*\"";
-    let mut chars = input.chars().map(Interval::char).peekable();
+    let mut chars = input.chars().map(Interval::<()>::char).peekable();
 
     let expression = parse(exp).unwrap();
     let nfa = build(expression);
