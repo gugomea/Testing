@@ -1,14 +1,14 @@
 use std::{collections::HashSet, fmt::Display};
 
+use super::automata::Alphabet;
 use crate::Frontend::tokens::Literal;
 use serde::{Serialize, Deserialize};
-
-use super::automata::Alphabet;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Interval<Ctx> {
     pub first: char,
     pub last: char,
+    #[serde(flatten)]
     pub ctx: Ctx,
 }
 

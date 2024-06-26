@@ -1,5 +1,5 @@
 import { Concatenation, Empty, NEW_NFA } from "./new_nfa.js";
-import { initSync, build_automata, automata_to_regex } from "../pkg/automata.js";
+import { initSync, build_automata, automata_to_regex, next, compile_nfa } from "../pkg/automata.js";
 
 export class Punto {
     x: number;
@@ -23,6 +23,7 @@ export class NodoGrafico {
     visible: boolean;
     name: string;
     ctx: CanvasRenderingContext2D;
+    activated: boolean;
 
     constructor(numero: number, centro: Punto) {
         this.numero = numero;
@@ -31,6 +32,7 @@ export class NodoGrafico {
         this.id = 0;
         this.final = false;
         this.name = "";
+        this.activated = false;
     }
 
     pos(): Punto { return this.centro; }
@@ -38,12 +40,19 @@ export class NodoGrafico {
     dist(p: Punto) { return Math.sqrt(Math.pow(this.centro.x - p.x, 2) + Math.pow(this.centro.y - p.y, 2)); }
 
     draw(ctx: CanvasRenderingContext2D) {
+        const color_circle = () => {
+            ctx.fillStyle = 'red';
+            ctx.fill();
+            ctx.fillStyle = 'black';
+        };
         ctx.beginPath();
         ctx.arc(this.centro.x, this.centro.y, this.radio, 0, 2 * Math.PI);
+        if(!this.final && this.activated) color_circle();
         ctx.stroke();
         if(this.final) {
             ctx.beginPath();
             ctx.arc(this.centro.x, this.centro.y, 3 * this.radio / 4, 0, 2 * Math.PI);
+            if(this.activated) color_circle();
             ctx.stroke();
         }
         let p = new Punto(this.centro.x, this.centro.y + 15);
@@ -295,11 +304,11 @@ export class AutomataGrafico {
     creating_transition: null | TransicionGrafica;
     elemento_seleccionado: any;//cambiar este tipo a cuando cree una interfaz "ElementoGrafico".
     visibilidad: Boolean;//estado de la visibilidad del autómata.
-    control: Boolean;
+    decompiled_regex: string;
 
     remove() {
         if(this.elemento_seleccionado != undefined) {
-            console.log(this.elemento_seleccionado);
+            //console.log(this.elemento_seleccionado);
             if(this.elemento_seleccionado instanceof TransicionGrafica) {
                 this.nfa.remove_transition(this.elemento_seleccionado);
             } else if(this.elemento_seleccionado instanceof NodoGrafico) {
@@ -309,51 +318,60 @@ export class AutomataGrafico {
             }
             this.elemento_seleccionado = null;
             this.draw();
-
-            let nfa = this.nfa;
-            let IR_NFA = new Map<string, Array<string>>;
-
-            let n = nfa.nodes.length;
-            // we set the number to i + 1, becasue we will create the inital and end transitions manually since they are variable.
-            for(let i = 0; i < n; i++) {
-                nfa.nodes[i].numero = i + 1;
-                if(nfa.nodes[i].final) {
-                    IR_NFA.set(`(${i+1}, ${n+1})`, ["ε"]);
-                }
-            }
-
-            console.log('nodes: ', nfa.nodes);
-
-            for(let t of nfa.transitions) {
-                let I: any;
-                //if the initial point is a Node, then its a normal transition
-                //otherwise it if its a `Punto`, that means its the representation of 
-                //the first state;
-                if(t.nodoI instanceof NodoGrafico) I = (t.nodoI as NodoGrafico).numero;
-                else I = 0;
-                let F = (t.nodoF as NodoGrafico).numero, key = `(${I}, ${F})`, text = t.texto;
-                if(I == 0) text = "ε";
-                if(IR_NFA.get(key) == undefined) IR_NFA.set(key, []);
-                IR_NFA.get(key)!.push(t.texto);
-            }
-            let new_IR_NFA = new Map(
-                Array.from(IR_NFA, ([key, value]) => {
-                    const inp = key.replace(/[()]/g, '');
-                    const [k1, k2] = inp.split(',').map(x => parseInt(x.trim()));
-                    return [[k1, k2], value]
-                })
-            );
-            console.log('NFA sent to Rust: ', new_IR_NFA);
-            console.log('from rust: ', automata_to_regex(new_IR_NFA));
-
         }
+    }
+
+    compile() {
+        let nfa = this.nfa;
+        let IR_NFA = new Map<string, Array<string>>;
+
+        let n = nfa.nodes.length;
+        // we set the number to i + 1, becasue we will create the inital and end transitions manually since they are variable.
+        for(let i = 0; i < n; i++) {
+            nfa.nodes[i].numero = i + 1;
+            if(nfa.nodes[i].final) {
+                IR_NFA.set(`(${i+1}, ${n+1})`, ["ε"]);
+            }
+        }
+        for(let t of nfa.transitions) {
+            let I: any;
+            //if the initial point is a Node, then its a normal transition
+            //otherwise it if its a `Punto`, that means its the representation of 
+            //the first state;
+            if(t.nodoI instanceof NodoGrafico) I = (t.nodoI as NodoGrafico).numero;
+            else I = 0;
+            let F = (t.nodoF as NodoGrafico).numero, key = `(${I}, ${F})`, text = t.texto;
+            if(I == 0) text = "ε"; 
+            if(IR_NFA.get(key) == undefined) IR_NFA.set(key, []);
+            IR_NFA.get(key)!.push(text);
+        }
+        let new_IR_NFA = new Map(
+            Array.from(IR_NFA, ([key, value]) => {
+                const inp = key.replace(/[()]/g, '');
+                const [k1, k2] = inp.split(',').map(x => parseInt(x.trim()));
+                return [[k1, k2], value]
+            })
+        );
+        this.decompiled_regex = automata_to_regex(new_IR_NFA);
+        console.log('regex: ', this.decompiled_regex);
+        compile_nfa(new_IR_NFA);
+    }
+
+    decompile() {
+        this.compile();
+        // (<HTMLInputElement> document.getElementById('input')).value = this.decompiled_regex;
     }
 
     constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
         this.canvas = canvas;
         this.ctx = ctx;
         this.nfa = new Empty();
-        this.control = false;
+        this.decompiled_regex = "";
+        const compilation = document.getElementById('decompile');
+        compilation?.addEventListener('click', () => {
+            this.decompile()
+            document.getElementById('reset')!.click();
+        });
     }
 
     clear() {
@@ -364,7 +382,6 @@ export class AutomataGrafico {
         this.shaping_transition = null;
         this.creating_transition = null;
         this.elemento_seleccionado = null;
-        this.control = false;
     }
 
     background() {
@@ -385,12 +402,12 @@ export class AutomataGrafico {
         }
     }
 
-    cambiar_texto(texto: string) {
+    cambiar_texto(evento: KeyboardEvent) {
+        let [texto, control] = [evento.key, evento.ctrlKey];
         if(this.nfa == undefined) return;
-        if(texto == 'Control') this.control = true;
 
         if(this.elemento_seleccionado != null) {
-            if(this.control && texto == 'v'){
+            if(control && texto == 'v'){
                 navigator.clipboard.readText().then(t => this.elemento_seleccionado.texto += t);
             } else if(texto.length == 1) {
                 this.elemento_seleccionado.push_text(texto);
@@ -467,7 +484,7 @@ export class AutomataGrafico {
         if(evt.button === 0) { //left-click
             if(circle != null) {//hay un circulo, así que lo hemos seleccionado(para moverlo)
                 //si pulsa 'control' mientras pulsa el nodo se convierte en nodo final.
-                if(this.control) {
+                if(evt.ctrlKey) {
                     circle.final = !circle.final;
                 } else {
                     this.draggin = circle;
@@ -478,7 +495,7 @@ export class AutomataGrafico {
                 //hay linea, así que la movemos.
                 if(linea != null) {
                     //si tenemos 'control' queremos cambiar la transición 
-                    if(this.control) {
+                    if(evt.ctrlKey) {
                         //if there is already a transition, we remove it, because we are going to recreate it now
                         let idx: number = this.nfa.transitions.findIndex(tr => tr == linea);
                         if(idx != -1) this.nfa.transitions.splice(idx, 1);
@@ -534,7 +551,8 @@ export class AutomataGrafico {
 
         this.draggin = null;
         let t = this.creating_transition;
-        if(t != null) {
+        const already_starting_transition = (tr: TransicionGrafica) => tr.nodoI instanceof Punto && this.nfa.transitions.find(p => p.nodoI instanceof Punto) != undefined;
+        if(t != null && !(already_starting_transition(t))) {
             let circle = this.closest_circle(p);
             if(circle != null) {
                 if(circle == t.nodoI) t = new SelfTransition(circle, circle, t.texto);

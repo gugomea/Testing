@@ -176,16 +176,18 @@ export class Union extends NEW_NFA {
         let union = this.copy();
         let node = new NodoGrafico(0, new Punto(union.start.centro.x, union.start.centro.y));
         union.end = node
-        union.nodes.push(node);
+        // WARNING: IDK i moved it down.
+        // union.nodes.push(node);
         let unitary_heigtht = next.reduce((acc, a) => acc + a.height() / 100, 0);
         let total_height = ((unitary_heigtht - 1) / 2) * 100 + union.start.pos().y;
         next.forEach(nfa => {
-            console.log('desde ', nfa.end, ' hacia: ', union.end);
+            //console.log('desde ', nfa.end, ' hacia: ', union.end);
             union.transitions.push(new TransicionGrafica(union.start, nfa.start, "ε"));
             union.transitions.push(new TransicionGrafica(nfa.end, union.end, "ε"));
             union.nodes.push(...nfa.nodes);
             union.transitions.push(...nfa.transitions);
         });
+        union.nodes.push(node);
 
         for(let nfa of next) {
             let anchor = nfa.highest().pos();
@@ -240,9 +242,16 @@ export class NFA_BUILDER {
     }
 
     draw_automata(automata: AutomataGrafico, expression: any, p: Punto) {
+        console.log('expression: ', expression);
         let nfa = this.calculate_bounding(automata, expression, p);
+        console.log(nfa.transitions);
+        if(nfa instanceof Empty) {
+            automata.draw();
+            return;
+        }
         nfa.end.final = true;
         nfa.dump_into(automata);
+        nfa.transitions.push(new TransicionGrafica(new Punto(nfa.start.centro.x - 25, nfa.start.centro.y - 80), nfa.start));
         this.draw_tangents(automata);
     }
 
@@ -269,7 +278,8 @@ export class NFA_BUILDER {
 
         } else if((exp = expression.l) != undefined) {
 
-            return new Literal(p, exp.atom);
+            const event = exp.atom == "." ? "\\.": exp.atom ?? ".";
+            return new Literal(p, event);
 
         } else if((exp = expression.one_or_more) != undefined) {
 

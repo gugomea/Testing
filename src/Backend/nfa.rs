@@ -1,6 +1,8 @@
 use std::{collections::HashSet, fmt::Debug};
 use serde::{Serialize, Deserialize};
-use super::automata::{Alphabet, Automata, Table, Transition};
+use crate::Frontend::{parser::parse, tokens::Literal};
+
+use super::{automata::{Alphabet, Automata, Table, Transition}, build::build, intermediate_automata::IRAutoamta};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NFA<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>> {
@@ -10,9 +12,50 @@ pub struct NFA<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>> {
     pub transition_function: Vec<Table<T, Vec<isize>>>,
 }
 
+impl<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T> + From<Literal>> TryFrom<IRAutoamta> for NFA<T> {
+    type Error = Box<dyn std::error::Error>;
+    fn try_from(automata: IRAutoamta) -> Result<Self, Self::Error> {
+        let n = automata.transition_map.iter()
+            .flat_map(|(x, _)| [x.0, x.1])
+            .max().unwrap();
+        let mut et = vec![vec![]; n + 1];
+        let mut tf = vec![Table::default(); n + 1];
+        for((from, to), expressions) in  automata.transition_map {
+            for exp in expressions {
+                match exp.as_ref() {
+                    "ε" => et[from].push(to as isize - from as isize),
+                    e => {
+                        let expression = parse(e)?;
+                        let err_msg = expression.to_string();
+                        let mut nfa = build::<T>(expression);
+                        if nfa.n_states != 2 {
+                            return Err(format!("Expected Literal, found: Expression: {}", err_msg).into());
+                        }
+                        let mut transitions = nfa.transition_function.swap_remove(0).transitions;
+                        transitions.iter_mut().for_each(|t| t.end = vec![to as isize - from as isize]);
+                        tf[from].transitions.append(&mut transitions);
+                    },
+                };
+            }
+        }
+
+        let mut nfa = NFA {
+            n_states: n + 1,
+            current: None,
+            empty_transitions: et,
+            transition_function: tf,
+        };
+        nfa.set_current(Some(HashSet::from([0])));
+        return Ok(nfa);
+    }
+}
+
 impl<T: PartialOrd + Eq + PartialEq + Clone + Copy + Alphabet<T>> Automata<T, HashSet<usize>> for NFA<T> {
     fn set_current(&mut self, curr: Option<HashSet<usize>>) {
-        self.current = curr;
+        self.current = match curr {
+            Some(current) => Some(self.closure(current.into_iter())),
+            None => None,
+        };
     }
 
     fn next(&self, input: T) -> Option<HashSet<usize>> {

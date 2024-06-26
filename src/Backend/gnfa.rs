@@ -79,7 +79,7 @@ impl GNFA {
     pub fn rip_state(&self, state: usize) {
         let mut ripped = self.ripped.borrow_mut();
         assert!(!ripped.contains(&state), "This state has been ripped, the order of the sates doesn't change");
-        
+
         let mut flow = self.flow.borrow_mut();
         let Q: Vec<_> = flow.clone().into_iter()
             .filter(|((from, to), _)| *to == state && !ripped.contains(from))
@@ -114,12 +114,14 @@ impl GNFA {
 }
 
 pub fn nfa_to_regex(gnfa: &GNFA) -> Option<Expression> {
-        for i in 1..gnfa.n_states - 1 {
-            println!("ripping state {i}...");
-            gnfa.rip_state(i);
-            gnfa.flow.borrow()
-                .iter()
-                .for_each(|(k, v)| println!("{:?} => {}", k , v));
+    if gnfa.n_states == 0 { return None }
+
+    for i in 1..gnfa.n_states - 1 {
+        println!("ripping state {i}...");
+        gnfa.rip_state(i);
+        gnfa.flow.borrow()
+            .iter()
+            .for_each(|(k, v)| println!("{:?} => {}", k , v));
         }
-        return gnfa.flow.borrow().get(&(0, gnfa.n_states - 1)).cloned();
+    return gnfa.flow.borrow().get(&(0, gnfa.n_states - 1)).cloned();
 }
