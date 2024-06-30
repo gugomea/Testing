@@ -12,7 +12,7 @@ body {
 
 .visualizator_container {
     width: 1724px;
-    max-width: 1724px;
+    /* max-width: 1724px; */
     height: 850px;
     position: relative;
     margin-left: auto;

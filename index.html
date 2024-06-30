@@ -93,6 +93,24 @@
             </div>
             <br><br>
         </div>
+        <br>
+        <br>
+        <br>
+        <br>
+        <input type="range" id="slider" min="836" max="4000" value="836">
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const box = document.getElementsByClassName('visualizator_container')[0];
+                const slider = document.getElementById('slider');
+
+                slider.addEventListener('input', () => {
+                    box.style.width = `${slider.value}px`;
+                    const rc = document.getElementById('right').offsetWidth;
+                    const canvas = document.getElementById('canvas');
+                    canvas.width = `${rc}px`;
+                });
+            });
+        </script>
     </body>
 </html>
 

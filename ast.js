@@ -14,7 +14,7 @@ function build_tree(ast) {
             };
         } else if((exp = expression.l) != undefined) {
             return {
-                text: { name: exp.atom },
+                text: { name: exp.atom || exp },
             };
         } else if((exp = expression.one_or_more) != undefined) {
             return {
