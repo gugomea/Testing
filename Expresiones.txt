@@ -1,0 +1,20 @@
+Epsilon: ε
+GMAIL: [A-Za-z0-9]+@[a-z.]+\.[a-z]+
+guillermoa727@gmail.es
+gugomea@unirioja.es
+gugomea@unirioja.arg
+gugomea@unirioja.edu.es
+gugomea@unirioja.edu.arg
+gugomea@unirioja.alum.es
+gugomea@unirioja.alum.arg 
+
+
+COMPILACIÓN DEL GMAIL solo españoles : [A-Za-z0-9]([A-Za-z0-9])*@[a-z.]([a-z.])*.es
+
+
+
+EXPRESIÓN PARA MANIPULAR CON TECLADO Y RATÓN: ((ab)*|(cd)*)*
+
+[0369]
+[147]
+[258]
