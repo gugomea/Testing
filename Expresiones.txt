@@ -13,7 +13,12 @@ COMPILACIÓN DEL GMAIL solo españoles : [A-Za-z0-9]([A-Za-z0-9])*@[a-z.]([a-z.]
 
 
 
-EXPRESIÓN PARA MANIPULAR CON TECLADO Y RATÓN: ((ab)*|(cd)*)*
+EXPRESIÓN PARA MANIPULAR CON TECLADO Y RATÓN: ((ab)*|(cd)*)+(x|z)+
+
+abx
+abz
+cdx
+cdz
 
 [0369]
 [147]
