@@ -69,9 +69,10 @@ pub enum Literal {
 impl Display for Literal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
+            Literal::atom('.') => format!("\\."),
             Literal::atom(ch) => ch.to_string(),
             Literal::anyLiteral => '.'.to_string(),
-            Literal::range(r) => format!("[{}-{}]", r.start(), r.end()),
+            Literal::range(r) => format!("{}-{}", r.start(), r.end()),
         };
         write!(f, "{}", str)
     }
